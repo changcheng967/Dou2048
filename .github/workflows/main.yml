@@ -1,51 +1,36 @@
-name: 2048 AI Performance Benchmark
+name: 2048 AI Optimized Benchmark
 
 on: [push, pull_request, schedule]
 
 jobs:
   benchmark:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        test-type: [performance, quick-test]
     
     steps:
     - name: 🚀 Checkout code
       uses: actions/checkout@v4
       
-    - name: 🛠️ Setup build environment
+    - name: 🛠️ Setup environment
       run: |
         sudo apt-get update
-        sudo apt-get install -y g++-11 build-essential
+        sudo apt-get install -y g++-11
         echo "CXX=g++-11" >> $GITHUB_ENV
         
     - name: 🔨 Compile with maximum optimizations
       run: |
         g++ -O3 -std=c++17 -pthread -march=native -flto -DNDEBUG \
-            -o 2048_ai_high_perf 2048_ai_optimized.cpp
-        echo "✅ 编译完成 - 使用最高级别优化"
+            -o 2048_ai_optimized 2048_ai_optimized.cpp
         
     - name: 📊 Run performance test
-      timeout-minutes: 15
+      timeout-minutes: 10
       run: |
         echo "🧪 开始高性能测试..."
-        echo "系统信息:"
-        echo "  CPU: $(nproc) 核心"
-        echo "  内存: $(free -h | grep Mem | awk '{print $2}')"
-        echo "  优化级别: -O3 -march=native -flto"
-        echo ""
-        ./2048_ai_high_perf
+        ./2048_ai_optimized
         
-    - name: 📈 Generate performance report
-      if: always()
-      run: |
-        echo "🏁 测试完成于 $(date)"
-        echo "📋 性能报告已生成"
-        
-    - name: 📦 Upload artifact
+    - name: 📦 Upload artifact with unique name
       uses: actions/upload-artifact@v4
       with:
-        name: 2048-ai-results
+        name: 2048-ai-results-${{ github.run_id }}-${{ github.run_attempt }}
         path: |
-          2048_ai_high_perf
-        retention-days: 30
+          2048_ai_optimized
+        retention-days: 7
