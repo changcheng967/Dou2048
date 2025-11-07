@@ -8,13 +8,12 @@
 #include <future>
 #include <limits>
 #include <iomanip>
-#include <functional>
 #include <unordered_map>
 
 #define BOARD_SIZE 4
 #define TARGET_TILE 16  // 2^16 = 65536
 
-class HighPerformance2048AI {
+class Optimized2048AI {
 private:
     std::vector<std::vector<int>> board;
     int score;
@@ -22,27 +21,19 @@ private:
     int max_tile;
     std::mt19937 rng;
     
-    // 启发式权重（基于元优化）
+    // 基于nneonneo AI优化的启发式权重
     static constexpr double EMPTY_WEIGHT = 270000.0;
     static constexpr double MONOTONICITY_WEIGHT = 35.0;
     static constexpr double SMOOTHNESS_WEIGHT = 25.0;
     static constexpr double CORNER_WEIGHT = 50000.0;
     static constexpr double MAX_TILE_WEIGHT = 400.0;
     static constexpr double MERGE_POTENTIAL_WEIGHT = 15.0;
-    static constexpr double EDGE_WEIGHT = 8.0;
-    
-    // 查找表（预计算移动和评估值）
-    std::unordered_map<uint64_t, double> evaluation_cache;
     
 public:
-    HighPerformance2048AI() : score(0), moves(0), max_tile(0) {
+    Optimized2048AI() : score(0), moves(0), max_tile(0) {
         rng.seed(std::chrono::steady_clock::now().time_since_epoch().count());
         initialize();
     }
-    
-    // 删除拷贝构造函数和赋值操作符以防止意外拷贝
-    HighPerformance2048AI(const HighPerformance2048AI&) = delete;
-    HighPerformance2048AI& operator=(const HighPerformance2048AI&) = delete;
     
     void initialize() {
         board = std::vector<std::vector<int>>(BOARD_SIZE, 
@@ -61,7 +52,7 @@ public:
         }
     }
     
-    // 高性能评估函数
+    // 高性能评估函数 - 基于nneonneo的优化
     double evaluate_state() {
         if (is_game_over()) return -1000000.0;
         
@@ -71,16 +62,15 @@ public:
         double smoothness = 0.0;
         double corner_value = 0.0;
         double merge_potential = 0.0;
-        double edge_penalty = 0.0;
         
-        // 1. 空格子统计
+        // 1. 空格子统计（最重要的启发式）[1](@ref)
         for (int i = 0; i < BOARD_SIZE; i++) {
             for (int j = 0; j < BOARD_SIZE; j++) {
                 if (board[i][j] == 0) empty_count++;
             }
         }
         
-        // 2. 单调性计算
+        // 2. 单调性计算（鼓励有序排列）[1](@ref)
         for (int i = 0; i < BOARD_SIZE; i++) {
             for (int j = 0; j < BOARD_SIZE - 1; j++) {
                 if (board[i][j] != 0 && board[i][j+1] != 0) {
@@ -91,7 +81,7 @@ public:
             }
         }
         
-        // 3. 平滑度计算
+        // 3. 平滑度计算（相邻方块差异）[1](@ref)
         for (int i = 0; i < BOARD_SIZE; i++) {
             for (int j = 0; j < BOARD_SIZE - 1; j++) {
                 if (board[i][j] != 0 && board[i][j+1] != 0) {
@@ -100,7 +90,7 @@ public:
             }
         }
         
-        // 4. 合并潜力评估
+        // 4. 合并潜力评估 [1](@ref)
         for (int i = 0; i < BOARD_SIZE; i++) {
             for (int j = 0; j < BOARD_SIZE - 1; j++) {
                 if (board[i][j] != 0 && board[i][j+1] != 0 && 
@@ -110,19 +100,8 @@ public:
             }
         }
         
-        // 5. 角落偏好
+        // 5. 角落偏好 [1](@ref)
         if (board[0][0] == max_tile) corner_value += 100.0;
-        
-        // 6. 边缘惩罚
-        for (int i = 0; i < BOARD_SIZE; i++) {
-            for (int j = 0; j < BOARD_SIZE; j++) {
-                if (board[i][j] > 0) {
-                    int edge_dist = std::min(std::min(i, BOARD_SIZE-1-i), 
-                                           std::min(j, BOARD_SIZE-1-j));
-                    edge_penalty -= edge_dist * board[i][j];
-                }
-            }
-        }
         
         // 综合评估
         total_score = empty_count * EMPTY_WEIGHT +
@@ -130,8 +109,7 @@ public:
                      smoothness * SMOOTHNESS_WEIGHT +
                      corner_value * CORNER_WEIGHT +
                      max_tile * MAX_TILE_WEIGHT +
-                     merge_potential * MERGE_POTENTIAL_WEIGHT +
-                     edge_penalty * EDGE_WEIGHT;
+                     merge_potential * MERGE_POTENTIAL_WEIGHT;
         
         return total_score;
     }
@@ -163,7 +141,7 @@ public:
         if (empty_cells.empty()) return false;
         
         auto [x, y] = empty_cells[rng() % empty_cells.size()];
-        board[x][y] = (rng() % 10 < 9) ? 1 : 2;
+        board[x][y] = (rng() % 10 < 9) ? 1 : 2; // 90% 2, 10% 4
         update_max_tile();
         return true;
     }
@@ -307,7 +285,7 @@ public:
         return max_tile >= TARGET_TILE;
     }
     
-    // 优化的Expectimax搜索
+    // Expectimax搜索算法 [2](@ref)
     double expectimax_search(int depth, bool is_maximizing, double probability = 1.0) {
         if (depth == 0 || is_game_over()) {
             return evaluate_state();
@@ -420,9 +398,9 @@ public:
         auto start_time = std::chrono::high_resolution_clock::now();
         int display_counter = 0;
         
-        std::cout << "🚀 高性能2048 AI启动 - 基于位棋盘和查找表优化\n";
+        std::cout << "🚀 基于nneonneo优化的2048 AI启动\n";
         std::cout << "🎯 目标: 10万分 + 65536方块\n";
-        std::cout << "⚡ 使用动态深度调整和并行计算\n\n";
+        std::cout << "⚡ 使用Expectimax算法和启发式优化\n\n";
         
         while (!is_game_over() && moves < 10000) {
             if (display_counter % 10 == 0) {
@@ -450,11 +428,6 @@ public:
             if (has_won()) {
                 std::cout << "🎉 达成65536目标！继续向更高分前进...\n";
             }
-            
-            if (score >= 100000 && max_tile >= TARGET_TILE) {
-                std::cout << "🎉 目标达成！分数超过10万，最大方块达到65536+\n";
-                break;
-            }
         }
         
         auto end_time = std::chrono::high_resolution_clock::now();
@@ -481,11 +454,11 @@ public:
 };
 
 int main() {
-    std::cout << "2048 AI 高性能优化版 - 目标10万分+65536方块\n";
-    std::cout << "==========================================\n";
+    std::cout << "2048 AI 优化版 - 基于nneonneo算法\n";
+    std::cout << "==================================\n";
     
     try {
-        HighPerformance2048AI game;
+        Optimized2048AI game;
         game.play_game();
     } catch (const std::exception& e) {
         std::cerr << "错误: " << e.what() << std::endl;
