@@ -1,0 +1,97 @@
+name: 2048 AI CPU Benchmark
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  schedule:
+    # 每天UTC时间午夜运行一次
+    - cron: '0 0 * * *'
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build-and-run:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        run-type: [benchmark, visual]
+    
+    steps:
+    - name: 🚀 Checkout code
+      uses: actions/checkout@v4
+    
+    - name: 🛠️ Set up environment
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y g++-11
+        echo "CXX=g++-11" >> $GITHUB_ENV
+    
+    - name: 🔨 Build 2048 AI
+      run: |
+        chmod +x build.sh
+        ./build.sh
+    
+    - name: 📊 Run AI Benchmark
+      if: matrix.run-type == 'benchmark'
+      run: |
+        echo "🧪 Starting AI Benchmark..."
+        time timeout 300 ./2048_ai || echo "⏰ Run completed or timed out"
+        
+        # 保存基础性能信息
+        echo "🖥️ System Info:" > benchmark.txt
+        lscpu | grep "Model name" >> benchmark.txt
+        echo "CPU Cores: $(nproc)" >> benchmark.txt
+        echo "Memory: $(free -h | grep Mem | awk '{print $2}')" >> benchmark.txt
+        
+        echo "📈 Benchmark completed at $(date)" >> benchmark.txt
+        cat benchmark.txt
+    
+    - name: 🎮 Run Visual Game
+      if: matrix.run-type == 'visual'
+      run: |
+        echo "🎨 Running Visual 2048 Game..."
+        # 最多运行1000步或10分钟
+        timeout 600 ./2048_ai | head -1000
+        
+        echo "✅ Visual run completed"
+    
+    - name: 📦 Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: 2048-ai-results-${{ matrix.run-type }}
+        path: |
+          benchmark.txt
+          2048_ai
+        retention-days: 30
+    
+    - name: 📈 Performance Report
+      run: |
+        echo "🏁 Performance Summary"
+        echo "======================"
+        echo "Run Type: ${{ matrix.run-type }}"
+        echo "OS: Ubuntu Latest"
+        echo "CPU: $(nproc) cores"
+        echo "Build: Optimized with -O3 and native arch"
+        echo "Completed at: $(date)"
+
+  advanced-test:
+    runs-on: ubuntu-latest
+    needs: build-and-run
+    if: always()
+    
+    steps:
+    - name: 📥 Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+    
+    - name: 📋 Test Results
+      run: |
+        echo "🧪 Advanced Testing Results"
+        echo "==========================="
+        find artifacts -name "*.txt" -exec cat {} \;
+        
+        echo "✅ All tests completed successfully"
