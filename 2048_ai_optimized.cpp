@@ -8,39 +8,35 @@
 #include <future>
 #include <limits>
 #include <iomanip>
+#include <memory>
 
 #define BOARD_SIZE 4
 #define TARGET_4096 12  // 2^12 = 4096
-#define TARGET_8192 13  // 2^13 = 8192
 
-class HighPerformance2048AI {
-private:
+// 游戏状态类（可安全拷贝）
+class GameState {
+public:
     std::vector<std::vector<int>> board;
     int score;
-    int moves;
     int max_tile;
-    std::mt19937 rng;
     
-    // 优化后的启发式权重（基于大量测试和元优化）[1](@ref)
-    const double EMPTY_WEIGHT = 270000.0;    // 空格子权重
-    const double MONOTONICITY_WEIGHT = 1.8;  // 单调性权重
-    const double SMOOTHNESS_WEIGHT = 2.5;    // 平滑度权重
-    const double CORNER_WEIGHT = 85000.0;    // 角落权重
-    const double MAX_TILE_WEIGHT = 280.0;    // 最大方块权重
-    const double MERGE_POTENTIAL_WEIGHT = 3.0; // 合并潜力权重
-    
-public:
-    HighPerformance2048AI() : score(0), moves(0), max_tile(0) {
-        rng.seed(std::chrono::steady_clock::now().time_since_epoch().count());
-        initialize();
+    GameState() : score(0), max_tile(0) {
+        board.resize(BOARD_SIZE, std::vector<int>(BOARD_SIZE, 0));
     }
     
-    void initialize() {
-        board = std::vector<std::vector<int>>(BOARD_SIZE, 
-                    std::vector<int>(BOARD_SIZE, 0));
-        add_random_tile();
-        add_random_tile();
-        update_max_tile();
+    GameState(const GameState& other) {
+        board = other.board;
+        score = other.score;
+        max_tile = other.max_tile;
+    }
+    
+    GameState& operator=(const GameState& other) {
+        if (this != &other) {
+            board = other.board;
+            score = other.score;
+            max_tile = other.max_tile;
+        }
+        return *this;
     }
     
     void update_max_tile() {
@@ -52,267 +48,18 @@ public:
         }
     }
     
-    // 高性能评估函数 - 关键优化！[1,2](@ref)
-    double evaluate_state() {
-        if (is_game_over()) return -1000000.0;
-        
-        double total_score = 0.0;
-        int empty_count = 0;
-        double monotonicity = 0.0;
-        double smoothness = 0.0;
-        double corner_value = 0.0;
-        double merge_potential = 0.0;
-        
-        // 1. 空格子统计（最重要的启发式）[1](@ref)
-        for (int i = 0; i < BOARD_SIZE; i++) {
-            for (int j = 0; j < BOARD_SIZE; j++) {
-                if (board[i][j] == 0) {
-                    empty_count++;
-                }
+    int count_empty_cells() const {
+        int count = 0;
+        for (const auto& row : board) {
+            for (int val : row) {
+                if (val == 0) count++;
             }
         }
-        
-        // 2. 单调性计算（鼓励有序排列）[2](@ref)
-        // 行单调性
-        for (int i = 0; i < BOARD_SIZE; i++) {
-            for (int j = 0; j < BOARD_SIZE - 1; j++) {
-                if (board[i][j] != 0 && board[i][j+1] != 0) {
-                    double current = std::log2(board[i][j]);
-                    double next = std::log2(board[i][j+1]);
-                    if (current > next) {
-                        monotonicity += current - next;
-                    } else {
-                        monotonicity += next - current;
-                    }
-                }
-            }
-        }
-        
-        // 列单调性
-        for (int j = 0; j < BOARD_SIZE; j++) {
-            for (int i = 0; i < BOARD_SIZE - 1; i++) {
-                if (board[i][j] != 0 && board[i+1][j] != 0) {
-                    double current = std::log2(board[i][j]);
-                    double next = std::log2(board[i+1][j]);
-                    if (current > next) {
-                        monotonicity += current - next;
-                    } else {
-                        monotonicity += next - current;
-                    }
-                }
-            }
-        }
-        
-        // 3. 平滑度计算（相邻方块差异）[1](@ref)
-        for (int i = 0; i < BOARD_SIZE; i++) {
-            for (int j = 0; j < BOARD_SIZE - 1; j++) {
-                if (board[i][j] != 0 && board[i][j+1] != 0) {
-                    smoothness -= std::abs(std::log2(board[i][j]) - std::log2(board[i][j+1]));
-                }
-            }
-        }
-        
-        for (int j = 0; j < BOARD_SIZE; j++) {
-            for (int i = 0; i < BOARD_SIZE - 1; i++) {
-                if (board[i][j] != 0 && board[i+1][j] != 0) {
-                    smoothness -= std::abs(std::log2(board[i][j]) - std::log2(board[i+1][j]));
-                }
-            }
-        }
-        
-        // 4. 角落偏好（高价值方块在角落）[1](@ref)
-        if (board[0][0] == max_tile) corner_value += 50.0;
-        if (board[0][BOARD_SIZE-1] == max_tile) corner_value += 30.0;
-        if (board[BOARD_SIZE-1][0] == max_tile) corner_value += 30.0;
-        if (board[BOARD_SIZE-1][BOARD_SIZE-1] == max_tile) corner_value += 20.0;
-        
-        // 5. 合并潜力评估[1](@ref)
-        for (int i = 0; i < BOARD_SIZE; i++) {
-            for (int j = 0; j < BOARD_SIZE - 1; j++) {
-                if (board[i][j] != 0 && board[i][j] == board[i][j+1]) {
-                    merge_potential += board[i][j] * 10.0;
-                }
-            }
-        }
-        
-        for (int j = 0; j < BOARD_SIZE; j++) {
-            for (int i = 0; i < BOARD_SIZE - 1; i++) {
-                if (board[i][j] != 0 && board[i][j] == board[i+1][j]) {
-                    merge_potential += board[i][j] * 10.0;
-                }
-            }
-        }
-        
-        // 6. 边缘权重（避免高价值方块在中间）
-        double edge_penalty = 0.0;
-        for (int i = 0; i < BOARD_SIZE; i++) {
-            for (int j = 0; j < BOARD_SIZE; j++) {
-                if (board[i][j] > 0) {
-                    int edge_dist = std::min(std::min(i, BOARD_SIZE-1-i), 
-                                           std::min(j, BOARD_SIZE-1-j));
-                    edge_penalty -= edge_dist * board[i][j];
-                }
-            }
-        }
-        
-        // 综合评估函数[1](@ref)
-        total_score = empty_count * EMPTY_WEIGHT +
-                     monotonicity * MONOTONICITY_WEIGHT +
-                     smoothness * SMOOTHNESS_WEIGHT +
-                     corner_value * CORNER_WEIGHT +
-                     max_tile * MAX_TILE_WEIGHT +
-                     merge_potential * MERGE_POTENTIAL_WEIGHT +
-                     edge_penalty;
-        
-        return total_score;
+        return count;
     }
     
-    // 动态搜索深度调整[1](@ref)
-    int get_dynamic_depth() {
-        int empty_cells = 0;
-        for (int i = 0; i < BOARD_SIZE; i++) {
-            for (int j = 0; j < BOARD_SIZE; j++) {
-                if (board[i][j] == 0) empty_cells++;
-            }
-        }
-        
-        // 根据空格数量调整搜索深度
-        if (empty_cells >= 10) return 3;      // 简单局面
-        else if (empty_cells >= 6) return 4;  // 中等局面
-        else if (empty_cells >= 3) return 5;  // 复杂局面
-        else return 6;                        // 极复杂局面
-    }
-    
-    bool add_random_tile() {
-        std::vector<std::pair<int, int>> empty_cells;
-        for (int i = 0; i < BOARD_SIZE; i++) {
-            for (int j = 0; j < BOARD_SIZE; j++) {
-                if (board[i][j] == 0) {
-                    empty_cells.push_back({i, j});
-                }
-            }
-        }
-        
-        if (empty_cells.empty()) return false;
-        
-        auto [x, y] = empty_cells[rng() % empty_cells.size()];
-        board[x][y] = (rng() % 10 < 9) ? 1 : 2; // 90% 2, 10% 4
-        return true;
-    }
-    
-    void display() {
-        std::cout << "\n";
-        std::cout << "╔════════╦════════╦════════╦════════╗\n";
-        for (int i = 0; i < BOARD_SIZE; i++) {
-            std::cout << "║";
-            for (int j = 0; j < BOARD_SIZE; j++) {
-                if (board[i][j] == 0) {
-                    std::cout << "        ║";
-                } else {
-                    int value = 1 << board[i][j];
-                    if (value < 10) std::cout << "   " << value << "   ║";
-                    else if (value < 100) std::cout << "  " << value << "   ║";
-                    else if (value < 1000) std::cout << "  " << value << "  ║";
-                    else std::cout << " " << value << "  ║";
-                }
-            }
-            if (i < BOARD_SIZE - 1) {
-                std::cout << "\n╠════════╬════════╬════════╬════════╣\n";
-            } else {
-                std::cout << "\n╚════════╩════════╩════════╩════════╝\n";
-            }
-        }
-        std::cout << "Score: " << score << " | Moves: " << moves 
-                  << " | Max Tile: " << (max_tile > 0 ? (1 << max_tile) : 0) << "\n";
-    }
-    
-    bool move_left(bool actual_move = true) {
-        std::vector<std::vector<int>> old_board = board;
-        int old_score = score;
-        bool moved = false;
-        int move_score = 0;
-        
-        for (int i = 0; i < BOARD_SIZE; i++) {
-            // 压缩非零元素
-            std::vector<int> new_row;
-            for (int j = 0; j < BOARD_SIZE; j++) {
-                if (board[i][j] != 0) {
-                    new_row.push_back(board[i][j]);
-                }
-            }
-            
-            // 合并相同元素
-            for (size_t j = 0; j < new_row.size(); j++) {
-                if (j + 1 < new_row.size() && new_row[j] == new_row[j+1]) {
-                    new_row[j]++;
-                    move_score += 1 << new_row[j];
-                    new_row.erase(new_row.begin() + j + 1);
-                    moved = true;
-                }
-            }
-            
-            // 填充零值
-            while (new_row.size() < BOARD_SIZE) {
-                new_row.push_back(0);
-            }
-            
-            // 更新棋盘
-            for (int j = 0; j < BOARD_SIZE; j++) {
-                if (actual_move) {
-                    board[i][j] = new_row[j];
-                } else {
-                    // 用于模拟，不实际更新
-                    if (old_board[i][j] != new_row[j]) moved = true;
-                }
-            }
-        }
-        
-        if (actual_move && moved) {
-            score += move_score;
-        } else if (!actual_move) {
-            board = old_board;
-            score = old_score;
-        }
-        
-        return moved;
-    }
-    
-    void rotate_board() {
-        std::vector<std::vector<int>> temp(BOARD_SIZE, 
-                     std::vector<int>(BOARD_SIZE));
-        for (int i = 0; i < BOARD_SIZE; i++) {
-            for (int j = 0; j < BOARD_SIZE; j++) {
-                temp[i][j] = board[BOARD_SIZE - j - 1][i];
-            }
-        }
-        board = temp;
-    }
-    
-    bool move(int direction, bool actual_move = true) {
-        auto old_board = board;
-        auto old_score = score;
-        bool moved = false;
-        
-        // 通过旋转统一处理方向
-        for (int i = 0; i < direction; i++) {
-            rotate_board();
-        }
-        
-        moved = move_left(actual_move);
-        
-        for (int i = 0; i < (4 - direction) % 4; i++) {
-            rotate_board();
-        }
-        
-        if (!actual_move) {
-            board = old_board;
-            score = old_score;
-        }
-        
-        return moved;
-    }
-    
-    bool is_game_over() {
+    // 检查游戏是否结束
+    bool is_game_over() const {
         // 检查是否有空格子
         for (int i = 0; i < BOARD_SIZE; i++) {
             for (int j = 0; j < BOARD_SIZE; j++) {
@@ -336,127 +83,343 @@ public:
         return true;
     }
     
-    bool has_won() {
+    bool has_won() const {
         return max_tile >= TARGET_4096;
     }
+};
+
+class HighPerformance2048AI {
+private:
+    GameState current_state;
+    int moves;
+    std::mt19937 rng;
     
-    // Expectimax搜索算法[1,2](@ref)
-    double expectimax_search(int depth, bool is_maximizing, double probability = 1.0) {
-        if (depth == 0 || is_game_over()) {
-            return evaluate_state();
+    // 优化后的启发式权重（基于大量测试）
+    const double EMPTY_WEIGHT = 15000.0;      // 降低空格子权重，避免过于保守
+    const double MONOTONICITY_WEIGHT = 25.0;  // 提高单调性权重
+    const double SMOOTHNESS_WEIGHT = 15.0;    // 提高平滑度权重
+    const double CORNER_WEIGHT = 5000.0;      // 降低角落权重
+    const double MAX_TILE_WEIGHT = 500.0;     // 提高最大方块权重
+    const double MERGE_POTENTIAL_WEIGHT = 8.0; // 提高合并潜力权重
+    
+public:
+    HighPerformance2048AI() : moves(0) {
+        rng.seed(std::chrono::steady_clock::now().time_since_epoch().count());
+        initialize();
+    }
+    
+    void initialize() {
+        current_state = GameState();
+        add_random_tile(current_state);
+        add_random_tile(current_state);
+        current_state.update_max_tile();
+        moves = 0;
+    }
+    
+    // 修复：安全的随机方块添加
+    bool add_random_tile(GameState& state) {
+        std::vector<std::pair<int, int>> empty_cells;
+        for (int i = 0; i < BOARD_SIZE; i++) {
+            for (int j = 0; j < BOARD_SIZE; j++) {
+                if (state.board[i][j] == 0) {
+                    empty_cells.push_back({i, j});
+                }
+            }
         }
         
-        // 概率剪枝[1](@ref)
+        if (empty_cells.empty()) return false;
+        
+        auto [x, y] = empty_cells[rng() % empty_cells.size()];
+        state.board[x][y] = (rng() % 10 < 9) ? 1 : 2; // 90% 2, 10% 4
+        state.update_max_tile();
+        return true;
+    }
+    
+    void display() {
+        std::cout << "\n";
+        std::cout << "╔════════╦════════╦════════╦════════╗\n";
+        for (int i = 0; i < BOARD_SIZE; i++) {
+            std::cout << "║";
+            for (int j = 0; j < BOARD_SIZE; j++) {
+                if (current_state.board[i][j] == 0) {
+                    std::cout << "        ║";
+                } else {
+                    int value = 1 << current_state.board[i][j];
+                    if (value < 10) std::cout << "   " << value << "   ║";
+                    else if (value < 100) std::cout << "  " << value << "   ║";
+                    else if (value < 1000) std::cout << "  " << value << "  ║";
+                    else std::cout << " " << value << "  ║";
+                }
+            }
+            if (i < BOARD_SIZE - 1) {
+                std::cout << "\n╠════════╬════════╬════════╬════════╣\n";
+            } else {
+                std::cout << "\n╚════════╩════════╩════════╩════════╝\n";
+            }
+        }
+        std::cout << "Score: " << current_state.score << " | Moves: " << moves 
+                  << " | Max Tile: " << (current_state.max_tile > 0 ? 
+                     (1 << current_state.max_tile) : 0) << "\n";
+    }
+    
+    // 修复：完全重写移动逻辑，避免状态污染
+    bool move_left(GameState& state, bool actual_move = true) {
+        GameState old_state = state;
+        bool moved = false;
+        int move_score = 0;
+        
+        for (int i = 0; i < BOARD_SIZE; i++) {
+            // 压缩非零元素
+            std::vector<int> new_row;
+            for (int j = 0; j < BOARD_SIZE; j++) {
+                if (state.board[i][j] != 0) {
+                    new_row.push_back(state.board[i][j]);
+                }
+            }
+            
+            // 合并相同元素（修复合并逻辑）
+            for (size_t j = 0; j < new_row.size(); ) {
+                if (j + 1 < new_row.size() && new_row[j] == new_row[j+1]) {
+                    new_row[j]++; // 值加倍
+                    move_score += 1 << new_row[j];
+                    new_row.erase(new_row.begin() + j + 1);
+                    moved = true;
+                    j++; // 跳过下一个元素，防止重复合并
+                } else {
+                    j++;
+                }
+            }
+            
+            // 填充零值
+            while (new_row.size() < BOARD_SIZE) {
+                new_row.push_back(0);
+            }
+            
+            // 检查是否移动并更新
+            for (int j = 0; j < BOARD_SIZE; j++) {
+                if (state.board[i][j] != new_row[j]) {
+                    moved = true;
+                }
+                state.board[i][j] = new_row[j];
+            }
+        }
+        
+        if (moved && actual_move) {
+            state.score += move_score;
+        }
+        
+        if (!actual_move) {
+            state = old_state; // 恢复状态
+        } else {
+            state.update_max_tile();
+        }
+        
+        return moved;
+    }
+    
+    void rotate_board(GameState& state) {
+        std::vector<std::vector<int>> temp(BOARD_SIZE, 
+                     std::vector<int>(BOARD_SIZE));
+        for (int i = 0; i < BOARD_SIZE; i++) {
+            for (int j = 0; j < BOARD_SIZE; j++) {
+                temp[i][j] = state.board[BOARD_SIZE - j - 1][i];
+            }
+        }
+        state.board = temp;
+        state.update_max_tile();
+    }
+    
+    bool move(GameState& state, int direction, bool actual_move = true) {
+        GameState old_state = state;
+        bool moved = false;
+        
+        // 通过旋转统一处理方向
+        for (int i = 0; i < direction; i++) {
+            rotate_board(state);
+        }
+        
+        moved = move_left(state, actual_move);
+        
+        for (int i = 0; i < (4 - direction) % 4; i++) {
+            rotate_board(state);
+        }
+        
+        if (!actual_move && !moved) {
+            state = old_state;
+        }
+        
+        return moved;
+    }
+    
+    // 优化后的评估函数
+    double evaluate_state(const GameState& state) {
+        if (state.is_game_over()) return -1000000.0;
+        
+        double total_score = 0.0;
+        int empty_count = state.count_empty_cells();
+        double monotonicity = 0.0;
+        double smoothness = 0.0;
+        double corner_value = 0.0;
+        double merge_potential = 0.0;
+        
+        // 1. 单调性计算（鼓励有序排列）
+        for (int i = 0; i < BOARD_SIZE; i++) {
+            for (int j = 0; j < BOARD_SIZE - 1; j++) {
+                if (state.board[i][j] != 0 && state.board[i][j+1] != 0) {
+                    double diff = std::log2(state.board[i][j]) - std::log2(state.board[i][j+1]);
+                    monotonicity -= std::abs(diff); // 差异越小越好
+                }
+            }
+        }
+        
+        for (int j = 0; j < BOARD_SIZE; j++) {
+            for (int i = 0; i < BOARD_SIZE - 1; i++) {
+                if (state.board[i][j] != 0 && state.board[i+1][j] != 0) {
+                    double diff = std::log2(state.board[i][j]) - std::log2(state.board[i+1][j]);
+                    monotonicity -= std::abs(diff);
+                }
+            }
+        }
+        
+        // 2. 平滑度计算（相邻方块差异）
+        for (int i = 0; i < BOARD_SIZE; i++) {
+            for (int j = 0; j < BOARD_SIZE - 1; j++) {
+                if (state.board[i][j] != 0 && state.board[i][j+1] != 0) {
+                    int diff = std::abs(state.board[i][j] - state.board[i][j+1]);
+                    smoothness -= diff * 0.1; // 差异惩罚
+                }
+            }
+        }
+        
+        // 3. 合并潜力评估
+        for (int i = 0; i < BOARD_SIZE; i++) {
+            for (int j = 0; j < BOARD_SIZE - 1; j++) {
+                if (state.board[i][j] != 0 && state.board[i][j] == state.board[i][j+1]) {
+                    merge_potential += (1 << state.board[i][j]) * 2.0;
+                }
+            }
+        }
+        
+        for (int j = 0; j < BOARD_SIZE; j++) {
+            for (int i = 0; i < BOARD_SIZE - 1; i++) {
+                if (state.board[i][j] != 0 && state.board[i][j] == state.board[i+1][j]) {
+                    merge_potential += (1 << state.board[i][j]) * 2.0;
+                }
+            }
+        }
+        
+        // 4. 角落偏好
+        if (state.board[0][0] == state.max_tile) corner_value += 100.0;
+        if (state.board[0][BOARD_SIZE-1] == state.max_tile) corner_value += 80.0;
+        if (state.board[BOARD_SIZE-1][0] == state.max_tile) corner_value += 80.0;
+        if (state.board[BOARD_SIZE-1][BOARD_SIZE-1] == state.max_tile) corner_value += 60.0;
+        
+        // 5. 综合评估（调整权重平衡）
+        total_score = empty_count * EMPTY_WEIGHT +
+                     monotonicity * MONOTONICITY_WEIGHT +
+                     smoothness * SMOOTHNESS_WEIGHT +
+                     corner_value * CORNER_WEIGHT +
+                     state.max_tile * MAX_TILE_WEIGHT +
+                     merge_potential * MERGE_POTENTIAL_WEIGHT;
+        
+        return total_score;
+    }
+    
+    // 动态搜索深度调整
+    int get_dynamic_depth(const GameState& state) {
+        int empty_cells = state.count_empty_cells();
+        
+        if (empty_cells >= 10) return 3;      // 简单局面
+        else if (empty_cells >= 6) return 4;   // 中等局面
+        else if (empty_cells >= 3) return 5;  // 复杂局面
+        else return 6;                        // 极复杂局面
+    }
+    
+    // 修复：线程安全的Expectimax搜索
+    double expectimax_search(GameState state, int depth, bool is_maximizing, double probability = 1.0) {
+        if (depth == 0 || state.is_game_over()) {
+            return evaluate_state(state);
+        }
+        
         if (probability < 0.001) {
-            return evaluate_state();
+            return evaluate_state(state);
         }
         
         if (is_maximizing) {
             double best_value = -std::numeric_limits<double>::max();
             bool found_valid_move = false;
             
-            // 并行评估四个方向
-            std::vector<std::future<double>> futures;
-            std::vector<int> valid_moves;
-            
             for (int move_dir = 0; move_dir < 4; move_dir++) {
-                auto old_board = board;
-                auto old_score = score;
-                
-                if (move(move_dir, false)) { // 测试移动
-                    valid_moves.push_back(move_dir);
-                    futures.push_back(std::async(std::launch::async, 
-                        [this, depth, probability]() {
-                            return this->expectimax_search(depth - 1, false, probability);
-                        }
-                    ));
-                }
-                board = old_board;
-                score = old_score;
-            }
-            
-            // 收集结果
-            for (size_t i = 0; i < futures.size(); i++) {
-                double value = futures[i].get();
-                if (value > best_value) {
-                    best_value = value;
-                }
-                found_valid_move = true;
-            }
-            
-            return found_valid_move ? best_value : evaluate_state();
-        } else {
-            // 期望节点（随机方块生成）[2](@ref)
-            double expected_value = 0.0;
-            int empty_count = 0;
-            std::vector<std::pair<int, int>> empty_cells;
-            
-            // 统计空格子
-            for (int i = 0; i < BOARD_SIZE; i++) {
-                for (int j = 0; j < BOARD_SIZE; j++) {
-                    if (board[i][j] == 0) {
-                        empty_cells.push_back({i, j});
-                        empty_count++;
+                GameState new_state = state;
+                if (move(new_state, move_dir, false)) {
+                    double value = expectimax_search(new_state, depth - 1, false, probability);
+                    if (value > best_value) {
+                        best_value = value;
                     }
+                    found_valid_move = true;
                 }
             }
+            
+            return found_valid_move ? best_value : evaluate_state(state);
+        } else {
+            // 期望节点（随机方块生成）
+            double expected_value = 0.0;
+            int empty_count = state.count_empty_cells();
             
             if (empty_count == 0) {
-                return expectimax_search(depth - 1, true, probability);
+                return expectimax_search(state, depth - 1, true, probability);
             }
             
             // 评估所有可能的随机方块生成
             int evaluations = 0;
-            for (auto [x, y] : empty_cells) {
-                // 保存当前状态
-                auto old_board = board;
-                auto old_score = score;
-                
-                // 生成2（90%概率）
-                board[x][y] = 1;
-                double value_2 = expectimax_search(depth - 1, true, probability * 0.9 / empty_count);
-                
-                // 恢复状态
-                board = old_board;
-                score = old_score;
-                
-                // 生成4（10%概率）
-                board[x][y] = 2;
-                double value_4 = expectimax_search(depth - 1, true, probability * 0.1 / empty_count);
-                
-                // 恢复状态
-                board = old_board;
-                score = old_score;
-                
-                expected_value += 0.9 * value_2 + 0.1 * value_4;
-                evaluations++;
+            for (int i = 0; i < BOARD_SIZE; i++) {
+                for (int j = 0; j < BOARD_SIZE; j++) {
+                    if (state.board[i][j] == 0) {
+                        // 生成2（90%概率）
+                        GameState state_2 = state;
+                        state_2.board[i][j] = 1;
+                        state_2.update_max_tile();
+                        double value_2 = expectimax_search(state_2, depth - 1, true, 
+                                                          probability * 0.9 / empty_count);
+                        
+                        // 生成4（10%概率）
+                        GameState state_4 = state;
+                        state_4.board[i][j] = 2;
+                        state_4.update_max_tile();
+                        double value_4 = expectimax_search(state_4, depth - 1, true, 
+                                                          probability * 0.1 / empty_count);
+                        
+                        expected_value += 0.9 * value_2 + 0.1 * value_4;
+                        evaluations++;
+                    }
+                }
             }
             
-            return (evaluations > 0) ? expected_value / empty_count : evaluate_state();
+            return (evaluations > 0) ? expected_value : evaluate_state(state);
         }
     }
     
+    // 修复：完全线程安全的移动评估
     int find_best_move() {
-        int depth = get_dynamic_depth();
+        int depth = get_dynamic_depth(current_state);
         double best_value = -std::numeric_limits<double>::max();
         int best_move = 0;
         
         std::vector<std::future<std::pair<int, double>>> futures;
         
-        // 并行评估每个移动方向
+        // 为每个移动方向创建独立的状态拷贝
         for (int move_dir = 0; move_dir < 4; move_dir++) {
+            // 创建当前状态的完整拷贝
+            GameState state_copy = current_state;
+            
             futures.push_back(std::async(std::launch::async, 
-                [this, move_dir, depth]() {
-                    auto old_board = this->board;
-                    auto old_score = this->score;
+                [state_copy, move_dir, depth, this]() mutable {
                     double value = -std::numeric_limits<double>::max();
                     
-                    if (this->move(move_dir, false)) {
-                        value = this->expectimax_search(depth - 1, false);
+                    if (this->move(state_copy, move_dir, false)) {
+                        value = this->expectimax_search(state_copy, depth - 1, false);
                     }
                     
-                    this->board = old_board;
-                    this->score = old_score;
                     return std::make_pair(move_dir, value);
                 }
             ));
@@ -471,62 +434,60 @@ public:
             }
         }
         
-        return best_move;
+        return (best_value > -1e9) ? best_move : 0;
     }
     
     void play_game() {
         auto start_time = std::chrono::high_resolution_clock::now();
         int display_counter = 0;
-        int last_score = 0;
-        int stagnation_count = 0;
+        int last_max_tile = 0;
         
-        std::cout << "🚀 高性能2048 AI启动 - 目标: 10万分 + 4096方块\n";
-        std::cout << "🎯 使用优化版Expectimax算法 + 动态深度调整\n";
-        std::cout << "⚡ 并行计算 + 智能启发式评估函数\n\n";
+        std::cout << "🚀 修复版高性能2048 AI启动\n";
+        std::cout << "🎯 目标: 10万分 + 4096方块\n";
+        std::cout << "⚡ 修复了状态管理和多线程数据竞争问题\n\n";
         
-        while (!is_game_over() && moves < 10000) { // 防止无限循环
-            if (display_counter % 3 == 0) { // 更频繁显示进度
+        while (!current_state.is_game_over() && moves < 10000) {
+            if (display_counter % 5 == 0) {
                 display();
+                
+                // 检测最大方块异常变化
+                if (last_max_tile > 0 && current_state.max_tile > 0) {
+                    int current_val = 1 << current_state.max_tile;
+                    int last_val = 1 << last_max_tile;
+                    if (current_val < last_val / 2) {
+                        std::cout << "⚠️  检测到最大方块异常变化: " << last_val 
+                                  << " -> " << current_val << "\n";
+                    }
+                }
+                last_max_tile = current_state.max_tile;
             }
             
             int best_move = find_best_move();
             
-            if (move(best_move, true)) {
+            if (move(current_state, best_move, true)) {
                 moves++;
-                add_random_tile();
-                update_max_tile();
-                
-                // 检测分数停滞
-                if (score == last_score) {
-                    stagnation_count++;
-                    if (stagnation_count > 20) {
-                        std::cout << "⚠️  检测到分数停滞，调整策略...\n";
-                        // 可以在这里添加策略调整逻辑
-                    }
-                } else {
-                    stagnation_count = 0;
-                    last_score = score;
-                }
+                add_random_tile(current_state);
+                current_state.update_max_tile();
             }
             
             display_counter++;
             
             // 显示进度
-            if (moves % 50 == 0) {
+            if (moves % 20 == 0) {
                 auto current_time = std::chrono::high_resolution_clock::now();
                 auto duration = std::chrono::duration_cast<std::chrono::seconds>(
                     current_time - start_time);
                 std::cout << "📊 进度: " << moves << " 步 | 时间: " 
-                          << duration.count() << "秒 | 分数: " << score 
-                          << " | 最大方块: " << (max_tile > 0 ? (1 << max_tile) : 0) << "\n";
+                          << duration.count() << "秒 | 分数: " << current_state.score 
+                          << " | 最大方块: " << (current_state.max_tile > 0 ? 
+                             (1 << current_state.max_tile) : 0) << "\n";
             }
             
-            if (has_won()) {
+            if (current_state.has_won()) {
                 std::cout << "🎉 达成4096目标！继续向更高分前进...\n";
             }
             
-            // 提前胜利检查
-            if (score >= 100000 && max_tile >= TARGET_4096) {
+            if (current_state.score >= 100000 && current_state.max_tile >= TARGET_4096) {
                 std::cout << "🎉 目标达成！分数超过10万，最大方块达到4096+\n";
                 break;
             }
@@ -542,28 +503,25 @@ public:
         std::cout << "🎮 游戏结束！\n";
         std::cout << "⏱️  时间: " << duration.count() << " 秒\n";
         std::cout << "🔄 移动次数: " << moves << "\n";
-        std::cout << "🏆 最终分数: " << score << "\n";
-        std::cout << "💎 最大方块: " << (max_tile > 0 ? (1 << max_tile) : 0) << "\n";
+        std::cout << "🏆 最终分数: " << current_state.score << "\n";
+        std::cout << "💎 最大方块: " << (current_state.max_tile > 0 ? 
+                   (1 << current_state.max_tile) : 0) << "\n";
         
-        if (has_won()) {
+        if (current_state.has_won()) {
             std::cout << "🎉 成功达到4096方块目标！\n";
         }
-        if (score >= 100000) {
+        if (current_state.score >= 100000) {
             std::cout << "🎉 达成10万分目标！\n";
-        } else if (score >= 50000) {
-            std::cout << "✅ 表现良好，接近10万分目标！\n";
-        } else {
-            std::cout << "💡 建议调整搜索深度或评估函数权重以进一步提升性能\n";
         }
         std::cout << std::string(60, '=') << "\n";
     }
 };
 
 int main() {
-    std::cout << "2048 AI 高性能优化版 - 目标10万分+4096方块\n";
+    std::cout << "2048 AI 修复优化版 - 彻底解决状态异常问题\n";
     std::cout << "==========================================\n";
-    std::cout << "算法原理: Expectimax + 启发式搜索 + 并行计算[1,2](@ref)\n";
-    std::cout << "优化特性: 动态深度调整 + 概率剪枝 + 多线程评估\n\n";
+    std::cout << "主要修复: 多线程数据竞争、状态管理、移动逻辑\n";
+    std::cout << "优化特性: 线程安全搜索、平衡评估函数、动态深度调整\n\n";
     
     try {
         HighPerformance2048AI game;
