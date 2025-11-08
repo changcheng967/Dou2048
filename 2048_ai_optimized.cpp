@@ -13,7 +13,7 @@
 #define BOARD_SIZE 4
 #define TARGET_TILE 16  // 2^16 = 65536
 
-class HighPerformance2048AI {
+class Ultimate2048AI {
 private:
     std::vector<std::vector<int>> board;
     int score;
@@ -21,7 +21,7 @@ private:
     int max_tile;
     std::mt19937 rng;
     
-    // 基于nneonneo的启发式权重
+    // 基于nneonneo AI优化的启发式权重[2](@ref)
     static constexpr double EMPTY_WEIGHT = 270000.0;
     static constexpr double MONOTONICITY_WEIGHT = 35.0;
     static constexpr double SMOOTHNESS_WEIGHT = 25.0;
@@ -29,8 +29,22 @@ private:
     static constexpr double MAX_TILE_WEIGHT = 400.0;
     static constexpr double MERGE_POTENTIAL_WEIGHT = 15.0;
     
+    // 评估缓存提升性能
+    std::unordered_map<uint64_t, double> eval_cache;
+    
+    // 将棋盘转换为唯一标识符
+    uint64_t board_to_hash() const {
+        uint64_t hash = 0;
+        for (int i = 0; i < BOARD_SIZE; i++) {
+            for (int j = 0; j < BOARD_SIZE; j++) {
+                hash = hash * 31 + board[i][j];
+            }
+        }
+        return hash;
+    }
+
 public:
-    HighPerformance2048AI() : score(0), moves(0), max_tile(0) {
+    Ultimate2048AI() : score(0), moves(0), max_tile(0) {
         rng.seed(std::chrono::steady_clock::now().time_since_epoch().count());
         initialize();
     }
@@ -52,9 +66,18 @@ public:
         }
     }
     
-    // 高性能评估函数
+    // 高性能评估函数 - 基于nneonneo优化[2](@ref)
     double evaluate_state() {
-        if (is_game_over()) return -1000000.0;
+        uint64_t hash = board_to_hash();
+        auto it = eval_cache.find(hash);
+        if (it != eval_cache.end()) {
+            return it->second;
+        }
+        
+        if (is_game_over()) {
+            eval_cache[hash] = -1000000.0;
+            return -1000000.0;
+        }
         
         double total_score = 0.0;
         int empty_count = 0;
@@ -63,14 +86,14 @@ public:
         double corner_value = 0.0;
         double merge_potential = 0.0;
         
-        // 1. 空格子统计
+        // 1. 空格子统计（最重要的启发式）[2](@ref)
         for (int i = 0; i < BOARD_SIZE; i++) {
             for (int j = 0; j < BOARD_SIZE; j++) {
                 if (board[i][j] == 0) empty_count++;
             }
         }
         
-        // 2. 单调性计算
+        // 2. 单调性计算（鼓励有序排列）
         for (int i = 0; i < BOARD_SIZE; i++) {
             for (int j = 0; j < BOARD_SIZE - 1; j++) {
                 if (board[i][j] != 0 && board[i][j+1] != 0) {
@@ -81,7 +104,7 @@ public:
             }
         }
         
-        // 3. 平滑度计算
+        // 3. 平滑度计算（相邻方块差异）
         for (int i = 0; i < BOARD_SIZE; i++) {
             for (int j = 0; j < BOARD_SIZE - 1; j++) {
                 if (board[i][j] != 0 && board[i][j+1] != 0) {
@@ -100,10 +123,10 @@ public:
             }
         }
         
-        // 5. 角落偏好
+        // 5. 角落偏好（高价值方块在角落）
         if (board[0][0] == max_tile) corner_value += 100.0;
         
-        // 综合评估
+        // 综合评估[2](@ref)
         total_score = empty_count * EMPTY_WEIGHT +
                      monotonicity * MONOTONICITY_WEIGHT +
                      smoothness * SMOOTHNESS_WEIGHT +
@@ -111,21 +134,34 @@ public:
                      max_tile * MAX_TILE_WEIGHT +
                      merge_potential * MERGE_POTENTIAL_WEIGHT;
         
+        eval_cache[hash] = total_score;
         return total_score;
     }
     
+    // 动态搜索深度调整 - 关键优化[2](@ref)
     int get_dynamic_depth() {
         int empty_cells = 0;
+        int large_tiles = 0;
+        
         for (int i = 0; i < BOARD_SIZE; i++) {
             for (int j = 0; j < BOARD_SIZE; j++) {
                 if (board[i][j] == 0) empty_cells++;
+                if (board[i][j] >= 8) large_tiles++; // 256或更大
             }
         }
         
-        if (empty_cells >= 10) return 3;
-        else if (empty_cells >= 6) return 4;
-        else if (empty_cells >= 3) return 5;
-        else return 6;
+        // 基于空格数量的基础深度
+        int base_depth = 3;
+        if (empty_cells >= 10) base_depth = 3;      // 简单局面
+        else if (empty_cells >= 6) base_depth = 4;  // 中等局面  
+        else if (empty_cells >= 3) base_depth = 5;  // 复杂局面
+        else base_depth = 6;                        // 极复杂局面
+        
+        // 有大方块时增加搜索深度
+        if (large_tiles >= 2) base_depth += 1;
+        if (max_tile >= 10) base_depth += 1; // 1024或更大
+        
+        return std::min(base_depth, 6);
     }
     
     bool add_random_tile() {
@@ -172,6 +208,7 @@ public:
                   << " | Max Tile: " << (max_tile > 0 ? (1 << max_tile) : 0) << "\n";
     }
     
+    // 修复的移动逻辑
     bool move_left(bool actual_move = true) {
         std::vector<std::vector<int>> old_board = board;
         int old_score = score;
@@ -205,11 +242,8 @@ public:
                 new_row.push_back(0);
             }
             
-            // 检查是否移动并更新
+            // 更新棋盘
             for (int j = 0; j < BOARD_SIZE; j++) {
-                if (old_board[i][j] != new_row[j]) {
-                    moved = true;
-                }
                 if (actual_move) {
                     board[i][j] = new_row[j];
                 }
@@ -285,7 +319,7 @@ public:
         return max_tile >= TARGET_TILE;
     }
     
-    // Expectimax搜索算法
+    // Expectimax搜索算法[6](@ref)
     double expectimax_search(int depth, bool is_maximizing, double probability = 1.0) {
         if (depth == 0 || is_game_over()) {
             return evaluate_state();
@@ -398,12 +432,12 @@ public:
         auto start_time = std::chrono::high_resolution_clock::now();
         int display_counter = 0;
         
-        std::cout << "🚀 高性能2048 AI启动 - 基于nneonneo算法优化\n";
+        std::cout << "🚀 终极版2048 AI启动 - 基于nneonneo算法深度优化\n";
         std::cout << "🎯 目标: 10万分 + 65536方块\n";
-        std::cout << "⚡ 使用动态深度调整和并行计算\n\n";
+        std::cout << "⚡ 使用动态深度调整和并行Expectimax搜索\n\n";
         
         while (!is_game_over() && moves < 10000) {
-            if (display_counter % 10 == 0) {
+            if (display_counter % 5 == 0) {
                 display();
             }
             
@@ -416,7 +450,7 @@ public:
             
             display_counter++;
             
-            if (moves % 50 == 0) {
+            if (moves % 20 == 0) {
                 auto current_time = std::chrono::high_resolution_clock::now();
                 auto duration = std::chrono::duration_cast<std::chrono::seconds>(
                     current_time - start_time);
@@ -453,17 +487,21 @@ public:
         }
         if (score >= 100000) {
             std::cout << "🎉 达成10万分目标！\n";
+        } else if (score >= 50000) {
+            std::cout << "✅ 表现良好，接近10万分目标！\n";
+        } else {
+            std::cout << "💡 建议进一步调整搜索参数以提升性能\n";
         }
         std::cout << std::string(60, '=') << "\n";
     }
 };
 
 int main() {
-    std::cout << "2048 AI 高性能优化版 - 基于nneonneo算法\n";
+    std::cout << "2048 AI 终极优化版 - 基于nneonneo高性能算法\n";
     std::cout << "==========================================\n";
     
     try {
-        HighPerformance2048AI game;
+        Ultimate2048AI game;
         game.play_game();
     } catch (const std::exception& e) {
         std::cerr << "错误: " << e.what() << std::endl;
