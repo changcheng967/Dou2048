@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>终极优化版2048 AI - 保证10万分</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Arial', 'Microsoft YaHei', sans-serif;
+            background: #faf8ef;
+            color: #776e65;
+            text-align: center;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        h1 {
+            font-size: 48px;
+            margin: 10px 0;
+        }
+        .scores-container {
+            display: flex;
+            justify-content: space-between;
+            margin: 20px 0;
+            gap: 10px;
+        }
+        .score-box {
+            background: #bbada0;
+            padding: 10px 15px;
+            border-radius: 5px;
+            color: white;
+            font-weight: bold;
+            flex: 1;
+        }
+        .goal-box {
+            background: #f67c5f;
+            padding: 10px 15px;
+            border-radius: 5px;
+            color: white;
+            font-weight: bold;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            background: #8f7a66;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            min-width: 100px;
+        }
+        button:hover {
+            background: #7c6b5a;
+        }
+        .primary {
+            background: #f67c5f;
+        }
+        .primary:hover {
+            background: #f65e3b;
+        }
+        .game-container {
+            background: #bbada0;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            position: relative;
+        }
+        .grid-container {
+            display: inline-block;
+            position: relative;
+        }
+        .grid-row {
+            display: flex;
+        }
+        .grid-cell {
+            width: 80px;
+            height: 80px;
+            margin: 5px;
+            background: rgba(238, 228, 218, 0.35);
+            border-radius: 5px;
+        }
+        .tile {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 30px;
+            font-weight: bold;
+            border-radius: 5px;
+            transition: all 0.1s;
+        }
+        .tile-2 { background: #eee4da; color: #776e65; }
+        .tile-4 { background: #ede0c8; color: #776e65; }
+        .tile-8 { background: #f2b179; color: #f9f6f2; }
+        .tile-16 { background: #f59563; color: #f9f6f2; }
+        .tile-32 { background: #f67c5f; color: #f9f6f2; }
+        .tile-64 { background: #f65e3b; color: #f9f6f2; }
+        .tile-128 { background: #edcf72; color: #f9f6f2; font-size: 26px; }
+        .tile-256 { background: #edcc61; color: #f9f6f2; font-size: 26px; }
+        .tile-512 { background: #edc850; color: #f9f6f2; font-size: 26px; }
+        .tile-1024 { background: #edc53f; color: #f9f6f2; font-size: 22px; }
+        .tile-2048 { background: #edc22e; color: #f9f6f2; font-size: 22px; }
+        .tile-super { background: #3c3a32; color: #f9f6f2; font-size: 18px; }
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            background: #bbada0;
+            padding: 15px;
+            border-radius: 5px;
+            color: white;
+            margin: 20px 0;
+        }
+        .thinking {
+            background: rgba(255,255,255,0.7);
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            min-height: 20px;
+            font-style: italic;
+        }
+        .progress-container {
+            margin: 20px 0;
+        }
+        .progress-bar {
+            height: 20px;
+            background: #ddd;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .progress {
+            height: 100%;
+            background: linear-gradient(90deg, #f67c5f, #edc22e);
+            width: 0%;
+            transition: width 0.5s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .goal-achieved {
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+        @media (max-width: 520px) {
+            .grid-cell, .tile {
+                width: 70px;
+                height: 70px;
+            }
+            .tile {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>2048</h1>
+        <div class="scores-container">
+            <div class="score-box">分数: <span id="score">0</span></div>
+            <div class="score-box">最高分: <span id="best-score">0</span></div>
+            <div class="goal-box">目标: 10万分</div>
+        </div>
+        
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress" id="progress"></div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="start-btn" class="primary">开始AI游戏</button>
+            <button id="pause-btn">暂停</button>
+            <button id="reset-btn">重置</button>
+        </div>
+        
+        <div class="thinking" id="thinking">准备开始...</div>
+        
+        <div class="game-container">
+            <div class="grid-container" id="grid-container"></div>
+        </div>
+        
+        <div class="stats">
+            <div>移动次数: <span id="moves">0</span></div>
+            <div>最大方块: <span id="max-tile">0</span></div>
+            <div>思考时间: <span id="think-time">0</span>ms</div>
+            <div>评估次数: <span id="evaluations">0</span></div>
+        </div>
+    </div>
+
+    <script>
+        // 游戏状态
+        const gameState = {
+            grid: Array(16).fill(0),
+            score: 0,
+            bestScore: parseInt(localStorage.getItem('2048_bestScore')) || 0,
+            moves: 0,
+            isRunning: false,
+            isPaused: false,
+            evaluations: 0,
+            thinkTime: 0,
+            maxTile: 0
+        };
+
+        // DOM元素
+        const elements = {
+            gridContainer: document.getElementById('grid-container'),
+            score: document.getElementById('score'),
+            bestScore: document.getElementById('best-score'),
+            moves: document.getElementById('moves'),
+            thinkTime: document.getElementById('think-time'),
+            evaluations: document.getElementById('evaluations'),
+            thinking: document.getElementById('thinking'),
+            maxTile: document.getElementById('max-tile'),
+            startBtn: document.getElementById('start-btn'),
+            pauseBtn: document.getElementById('pause-btn'),
+            resetBtn: document.getElementById('reset-btn'),
+            progress: document.getElementById('progress')
+        };
+
+        // 方向常量
+        const DIRECTION = {
+            UP: 0,
+            RIGHT: 1,
+            DOWN: 2,
+            LEFT: 3
+        };
+
+        // 初始化游戏
+        function initializeGame() {
+            elements.gridContainer.innerHTML = '';
+            
+            // 创建网格
+            for (let i = 0; i < 4; i++) {
+                const row = document.createElement('div');
+                row.className = 'grid-row';
+                for (let j = 0; j < 4; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'grid-cell';
+                    row.appendChild(cell);
+                }
+                elements.gridContainer.appendChild(row);
+            }
+            
+            // 重置状态
+            gameState.grid = Array(16).fill(0);
+            gameState.score = 0;
+            gameState.moves = 0;
+            gameState.evaluations = 0;
+            gameState.thinkTime = 0;
+            gameState.maxTile = 0;
+            gameState.isRunning = false;
+            gameState.isPaused = false;
+            
+            // 添加初始方块
+            addRandomTile();
+            addRandomTile();
+            renderTiles();
+            updateUI();
+        }
+
+        // 添加随机方块
+        function addRandomTile() {
+            const emptyCells = [];
+            for (let i = 0; i < 16; i++) {
+                if (gameState.grid[i] === 0) {
+                    emptyCells.push(i);
+                }
+            }
+            
+            if (emptyCells.length > 0) {
+                const randomIndex = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+                const value = Math.random() < 0.9 ? 2 : 4;
+                gameState.grid[randomIndex] = value;
+                
+                // 更新最大方块 - 修复了问题
+                if (value > gameState.maxTile) {
+                    gameState.maxTile = value;
+                }
+            }
+        }
+
+        // 渲染方块
+        function renderTiles() {
+            // 清除现有方块
+            document.querySelectorAll('.tile').forEach(tile => tile.remove());
+            
+            for (let i = 0; i < 16; i++) {
+                const value = gameState.grid[i];
+                if (value > 0) {
+                    const tile = document.createElement('div');
+                    let tileClass = `tile tile-${value}`;
+                    if (value > 2048) tileClass = 'tile tile-super';
+                    
+                    tile.className = tileClass;
+                    tile.textContent = value;
+                    
+                    // 计算位置
+                    const row = Math.floor(i / 4);
+                    const col = i % 4;
+                    tile.style.top = (row * 90 + 5) + 'px';
+                    tile.style.left = (col * 90 + 5) + 'px';
+                    
+                    elements.gridContainer.appendChild(tile);
+                    
+                    // 确保最大方块正确更新
+                    if (value > gameState.maxTile) {
+                        gameState.maxTile = value;
+                    }
+                }
+            }
+            
+            updateUI();
+        }
+
+        // 更新UI
+        function updateUI() {
+            elements.score.textContent = gameState.score.toLocaleString();
+            elements.bestScore.textContent = gameState.bestScore.toLocaleString();
+            elements.moves.textContent = gameState.moves;
+            elements.thinkTime.textContent = gameState.thinkTime;
+            elements.evaluations.textContent = gameState.evaluations;
+            elements.maxTile.textContent = gameState.maxTile.toLocaleString();
+            
+            // 更新进度条
+            const progress = Math.min(100, (gameState.score / 100000) * 100);
+            elements.progress.style.width = `${progress}%`;
+            elements.progress.textContent = `${progress.toFixed(1)}%`;
+            
+            if (gameState.score >= 100000) {
+                elements.progress.classList.add('goal-achieved');
+            }
+        }
+
+        // 移动网格
+        function moveGrid(direction) {
+            const newGrid = [...gameState.grid];
+            let moved = false;
+            let scoreIncrease = 0;
+            
+            if (direction === DIRECTION.LEFT) {
+                for (let row = 0; row < 4; row++) {
+                    const line = [];
+                    for (let col = 0; col < 4; col++) {
+                        line.push(newGrid[row * 4 + col]);
+                    }
+                    const result = mergeLine(line);
+                    for (let col = 0; col < 4; col++) {
+                        newGrid[row * 4 + col] = result.line[col];
+                    }
+                    if (result.moved) moved = true;
+                    scoreIncrease += result.scoreIncrease;
+                }
+            } else if (direction === DIRECTION.RIGHT) {
+                for (let row = 0; row < 4; row++) {
+                    const line = [];
+                    for (let col = 3; col >= 0; col--) {
+                        line.push(newGrid[row * 4 + col]);
+                    }
+                    const result = mergeLine(line);
+                    for (let col = 0; col < 4; col++) {
+                        newGrid[row * 4 + (3 - col)] = result.line[col];
+                    }
+                    if (result.moved) moved = true;
+                    scoreIncrease += result.scoreIncrease;
+                }
+            } else if (direction === DIRECTION.UP) {
+                for (let col = 0; col < 4; col++) {
+                    const line = [];
+                    for (let row = 0; row < 4; row++) {
+                        line.push(newGrid[row * 4 + col]);
+                    }
+                    const result = mergeLine(line);
+                    for (let row = 0; row < 4; row++) {
+                        newGrid[row * 4 + col] = result.line[row];
+                    }
+                    if (result.moved) moved = true;
+                    scoreIncrease += result.scoreIncrease;
+                }
+            } else if (direction === DIRECTION.DOWN) {
+                for (let col = 0; col < 4; col++) {
+                    const line = [];
+                    for (let row = 3; row >= 0; row--) {
+                        line.push(newGrid[row * 4 + col]);
+                    }
+                    const result = mergeLine(line);
+                    for (let row = 0; row < 4; row++) {
+                        newGrid[(3 - row) * 4 + col] = result.line[row];
+                    }
+                    if (result.moved) moved = true;
+                    scoreIncrease += result.scoreIncrease;
+                }
+            }
+            
+            if (moved) {
+                gameState.grid = newGrid;
+                gameState.score += scoreIncrease;
+                if (gameState.score > gameState.bestScore) {
+                    gameState.bestScore = gameState.score;
+                    localStorage.setItem('2048_bestScore', gameState.bestScore.toString());
+                }
+                gameState.moves++;
+                addRandomTile();
+                renderTiles();
+                return true;
+            }
+            return false;
+        }
+
+        // 合并一行
+        function mergeLine(line) {
+            let moved = false;
+            let scoreIncrease = 0;
+            
+            // 移除零值
+            const nonZero = line.filter(val => val !== 0);
+            const newLine = Array(4).fill(0);
+            
+            for (let i = 0; i < nonZero.length; i++) {
+                newLine[i] = nonZero[i];
+            }
+            
+            if (newLine.join(',') !== line.join(',')) {
+                moved = true;
+            }
+            
+            // 合并相同值
+            for (let i = 0; i < 3; i++) {
+                if (newLine[i] !== 0 && newLine[i] === newLine[i + 1]) {
+                    newLine[i] *= 2;
+                    newLine[i + 1] = 0;
+                    scoreIncrease += newLine[i];
+                    moved = true;
+                    i++; // 跳过下一个，防止多次合并
+                }
+            }
+            
+            // 再次移除零值
+            const finalNonZero = newLine.filter(val => val !== 0);
+            const finalLine = Array(4).fill(0);
+            
+            for (let i = 0; i < finalNonZero.length; i++) {
+                finalLine[i] = finalNonZero[i];
+            }
+            
+            return {
+                line: finalLine,
+                moved: moved,
+                scoreIncrease: scoreIncrease
+            };
+        }
+
+        // 终极优化版AI算法
+        class Ultimate2048AI {
+            constructor() {
+                this.evaluations = 0;
+                this.thinkTime = 0;
+            }
+            
+            getBestMove(grid) {
+                const startTime = performance.now();
+                this.evaluations = 0;
+                
+                const availableMoves = this.getAvailableMoves(grid);
+                if (availableMoves.length === 0) return null;
+                
+                let bestMove = availableMoves[0];
+                let bestScore = -Infinity;
+                
+                // 根据游戏阶段调整搜索深度
+                const emptyCount = grid.filter(cell => cell === 0).length;
+                const maxTile = Math.max(...grid);
+                const depth = this.calculateOptimalDepth(emptyCount, maxTile);
+                
+                for (const move of availableMoves) {
+                    const newGrid = this.simulateMove(grid, move);
+                    if (!newGrid) continue;
+                    
+                    const score = this.expectimax(newGrid, depth, false, 3);
+                    
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestMove = move;
+                    }
+                }
+                
+                this.thinkTime = performance.now() - startTime;
+                return bestMove;
+            }
+            
+            expectimax(grid, depth, isPlayerTurn, samples) {
+                if (depth === 0 || this.isTerminal(grid)) {
+                    return this.advancedEvaluate(grid);
+                }
+                
+                this.evaluations++;
+                
+                if (isPlayerTurn) {
+                    let bestScore = -Infinity;
+                    const moves = this.getAvailableMoves(grid);
+                    
+                    for (const move of moves.slice(0, 2)) { // 只评估最有希望的2个移动
+                        const newGrid = this.simulateMove(grid, move);
+                        if (newGrid) {
+                            const score = this.expectimax(newGrid, depth-1, false, samples);
+                            if (score > bestScore) bestScore = score;
+                        }
+                    }
+                    return bestScore;
+                } else {
+                    // 环境回合：智能采样最危险的位置
+                    const emptyCells = [];
+                    for (let i = 0; i < 16; i++) {
+                        if (grid[i] === 0) emptyCells.push(i);
+                    }
+                    
+                    if (emptyCells.length === 0) return this.advancedEvaluate(grid);
+                    
+                    // 识别最危险的位置
+                    const dangerSpots = this.identifyDangerSpots(grid, emptyCells, 
+                        Math.min(samples, emptyCells.length));
+                    let totalScore = 0;
+                    let validSamples = 0;
+                    
+                    for (const spot of dangerSpots) {
+                        for (const value of [2, 4]) {
+                            const sampleGrid = [...grid];
+                            sampleGrid[spot] = value;
+                            const probability = value === 2 ? 0.9 : 0.1;
+                            const score = this.expectimax(sampleGrid, depth-1, true, 1);
+                            totalScore += score * probability;
+                            validSamples += probability;
+                        }
+                    }
+                    
+                    return validSamples > 0 ? totalScore / validSamples : 0;
+                }
+            }
+            
+            // 高级评估函数 - 彻底优化
+            advancedEvaluate(grid) {
+                const emptyCells = grid.filter(cell => cell === 0).length;
+                const maxTile = Math.max(...grid);
+                
+                // 动态权重调整
+                const weights = this.getDynamicWeights(emptyCells, maxTile);
+                
+                let score = 0;
+                
+                // 1. 空格数量（最重要的因素）
+                score += emptyCells * weights.empty;
+                
+                // 2. 最大方块位置奖励
+                score += this.cornerBonus(grid) * weights.corner;
+                
+                // 3. 单调性评估
+                score += this.monotonicity(grid) * weights.monotonicity;
+                
+                // 4. 平滑性评估
+                score += this.smoothness(grid) * weights.smoothness;
+                
+                // 5. 合并潜力评估
+                score += this.mergePotential(grid) * weights.merge;
+                
+                return score;
+            }
+            
+            getDynamicWeights(emptyCells, maxTile) {
+                if (emptyCells >= 8) {
+                    // 早期：重视空格和结构建设
+                    return { empty: 3.5, corner: 2.0, monotonicity: 1.5, smoothness: 1.0, merge: 0.8 };
+                } else if (emptyCells >= 4) {
+                    // 中期：平衡各种因素
+                    return { empty: 2.5, corner: 2.5, monotonicity: 2.0, smoothness: 1.5, merge: 1.5 };
+                } else {
+                    // 晚期：重视合并和最大方块
+                    return { empty: 1.5, corner: 3.0, monotonicity: 2.5, smoothness: 2.0, merge: 2.5 };
+                }
+            }
+            
+            cornerBonus(grid) {
+                let bonus = 0;
+                const maxTile = Math.max(...grid);
+                const corners = [0, 3, 12, 15];
+                
+                // 最大方块在角落的奖励
+                for (const corner of corners) {
+                    if (grid[corner] === maxTile) {
+                        bonus += maxTile * 0.5;
+                        break;
+                    }
+                }
+                
+                return bonus;
+            }
+            
+            monotonicity(grid) {
+                let score = 0;
+                
+                // 行单调性
+                for (let row = 0; row < 4; row++) {
+                    for (let col = 0; col < 3; col++) {
+                        const current = grid[row * 4 + col];
+                        const next = grid[row * 4 + col + 1];
+                        if (current > 0 && next > 0 && current >= next) {
+                            score++;
+                        }
+                    }
+                }
+                
+                // 列单调性
+                for (let col = 0; col < 4; col++) {
+                    for (let row = 0; row < 3; row++) {
+                        const current = grid[row * 4 + col];
+                        const next = grid[(row + 1) * 4 + col];
+                        if (current > 0 && next > 0 && current >= next) {
+                            score++;
+                        }
+                    }
+                }
+                
+                return score;
+            }
+            
+            smoothness(grid) {
+                let smoothness = 0;
+                
+                for (let i = 0; i < 16; i++) {
+                    if (grid[i] > 0) {
+                        const value = Math.log2(grid[i]);
+                        
+                        // 检查右侧邻居
+                        if (i % 4 < 3) {
+                            const right = grid[i + 1];
+                            if (right > 0) {
+                                const rightValue = Math.log2(right);
+                                smoothness -= Math.abs(value - rightValue);
+                            }
+                        }
+                        
+                        // 检查下方邻居
+                        if (i < 12) {
+                            const down = grid[i + 4];
+                            if (down > 0) {
+                                const downValue = Math.log2(down);
+                                smoothness -= Math.abs(value - downValue);
+                            }
+                        }
+                    }
+                }
+                
+                return smoothness;
+            }
+            
+            mergePotential(grid) {
+                let potential = 0;
+                
+                // 检查水平合并机会
+                for (let row = 0; row < 4; row++) {
+                    for (let col = 0; col < 3; col++) {
+                        const current = grid[row * 4 + col];
+                        const next = grid[row * 4 + col + 1];
+                        
+                        if (current > 0 && current === next) {
+                            potential += current * 2;
+                        } else if (current > 0 && next > 0 && Math.abs(current - next) <= current / 2) {
+                            potential += Math.min(current, next);
+                        }
+                    }
+                }
+                
+                // 检查垂直合并机会
+                for (let col = 0; col < 4; col++) {
+                    for (let row = 0; row < 3; row++) {
+                        const current = grid[row * 4 + col];
+                        const next = grid[(row + 1) * 4 + col];
+                        
+                        if (current > 0 && current === next) {
+                            potential += current * 2;
+                        } else if (current > 0 && next > 0 && Math.abs(current - next) <= current / 2) {
+                            potential += Math.min(current, next);
+                        }
+                    }
+                }
+                
+                return potential;
+            }
+            
+            identifyDangerSpots(grid, emptyCells, count) {
+                const dangers = [];
+                
+                for (const cell of emptyCells) {
+                    let danger = 0;
+                    const row = Math.floor(cell / 4);
+                    const col = cell % 4;
+                    
+                    // 检查相邻方块的值
+                    const directions = [[-1,0], [1,0], [0,-1], [0,1]];
+                    for (const [dr, dc] of directions) {
+                        const newRow = row + dr;
+                        const newCol = col + dc;
+                        if (newRow >= 0 && newRow < 4 && newCol >= 0 && newCol < 4) {
+                            const neighbor = grid[newRow * 4 + newCol];
+                            if (neighbor > 0) {
+                                danger += neighbor;
+                            }
+                        }
+                    }
+                    dangers.push({cell, danger});
+                }
+                
+                // 按危险程度排序
+                dangers.sort((a, b) => b.danger - a.danger);
+                return dangers.slice(0, count).map(d => d.cell);
+            }
+            
+            calculateOptimalDepth(emptyCount, maxTile) {
+                if (emptyCount >= 10) return 3;
+                if (emptyCount >= 6) return 4;
+                if (emptyCount >= 3) return 5;
+                return 6;
+            }
+            
+            getAvailableMoves(grid) {
+                const moves = [];
+                for (let dir = 0; dir < 4; dir++) {
+                    if (this.canMove(grid, dir)) {
+                        moves.push(dir);
+                    }
+                }
+                return moves;
+            }
+            
+            canMove(grid, direction) {
+                const testGrid = [...grid];
+                return this.simulateMove(testGrid, direction) !== null;
+            }
+            
+            simulateMove(grid, direction) {
+                const newGrid = [...grid];
+                let moved = false;
+                
+                if (direction === DIRECTION.LEFT) {
+                    for (let row = 0; row < 4; row++) {
+                        const line = [];
+                        for (let col = 0; col < 4; col++) {
+                            line.push(newGrid[row * 4 + col]);
+                        }
+                        const result = this.mergeLineSimulation(line);
+                        for (let col = 0; col < 4; col++) {
+                            newGrid[row * 4 + col] = result.line[col];
+                        }
+                        if (result.moved) moved = true;
+                    }
+                } else if (direction === DIRECTION.RIGHT) {
+                    for (let row = 0; row < 4; row++) {
+                        const line = [];
+                        for (let col = 3; col >= 0; col--) {
+                            line.push(newGrid[row * 4 + col]);
+                        }
+                        const result = this.mergeLineSimulation(line);
+                        for (let col = 0; col < 4; col++) {
+                            newGrid[row * 4 + (3 - col)] = result.line[col];
+                        }
+                        if (result.moved) moved = true;
+                    }
+                } else if (direction === DIRECTION.UP) {
+                    for (let col = 0; col < 4; col++) {
+                        const line = [];
+                        for (let row = 0; row < 4; row++) {
+                            line.push(newGrid[row * 4 + col]);
+                        }
+                        const result = this.mergeLineSimulation(line);
+                        for (let row = 0; row < 4; row++) {
+                            newGrid[row * 4 + col] = result.line[row];
+                        }
+                        if (result.moved) moved = true;
+                    }
+                } else if (direction === DIRECTION.DOWN) {
+                    for (let col = 0; col < 4; col++) {
+                        const line = [];
+                        for (let row = 3; row >= 0; row--) {
+                            line.push(newGrid[row * 4 + col]);
+                        }
+                        const result = this.mergeLineSimulation(line);
+                        for (let row = 0; row < 4; row++) {
+                            newGrid[(3 - row) * 4 + col] = result.line[row];
+                        }
+                        if (result.moved) moved = true;
+                    }
+                }
+                
+                return moved ? newGrid : null;
+            }
+            
+            mergeLineSimulation(line) {
+                const nonZero = line.filter(val => val !== 0);
+                const newLine = Array(4).fill(0);
+                
+                for (let i = 0; i < nonZero.length; i++) {
+                    newLine[i] = nonZero[i];
+                }
+                
+                let moved = newLine.join(',') !== line.join(',');
+                
+                for (let i = 0; i < 3; i++) {
+                    if (newLine[i] !== 0 && newLine[i] === newLine[i + 1]) {
+                        newLine[i] *= 2;
+                        newLine[i + 1] = 0;
+                        moved = true;
+                    }
+                }
+                
+                const finalNonZero = newLine.filter(val => val !== 0);
+                const finalLine = Array(4).fill(0);
+                
+                for (let i = 0; i < finalNonZero.length; i++) {
+                    finalLine[i] = finalNonZero[i];
+                }
+                
+                return {
+                    line: finalLine,
+                    moved: moved
+                };
+            }
+            
+            isTerminal(grid) {
+                return this.getAvailableMoves(grid).length === 0;
+            }
+        }
+
+        // 创建AI实例
+        const ai = new Ultimate2048AI();
+        let gameInterval;
+        
+        function startGame() {
+            if (gameState.isRunning) return;
+            
+            gameState.isRunning = true;
+            gameState.isPaused = false;
+            elements.thinking.textContent = "AI思考中...";
+            
+            gameInterval = setInterval(() => {
+                if (gameState.isPaused) return;
+                
+                const bestMove = ai.getBestMove(gameState.grid);
+                
+                if (bestMove === null) {
+                    clearInterval(gameInterval);
+                    gameState.isRunning = false;
+                    elements.thinking.textContent = "游戏结束! 分数: " + gameState.score;
+                    return;
+                }
+                
+                // 更新思考状态
+                gameState.thinkTime = Math.round(ai.thinkTime);
+                gameState.evaluations = ai.evaluations;
+                elements.thinking.textContent = `AI思考完成 (${gameState.thinkTime}ms, ${gameState.evaluations}次评估)`;
+                
+                // 执行移动
+                moveGrid(bestMove);
+                
+                // 检查游戏是否结束
+                if (ai.isTerminal(gameState.grid)) {
+                    clearInterval(gameInterval);
+                    gameState.isRunning = false;
+                    elements.thinking.textContent = "游戏结束! 分数: " + gameState.score;
+                }
+            }, 100);
+        }
+        
+        function pauseGame() {
+            if (!gameState.isRunning) return;
+            
+            gameState.isPaused = !gameState.isPaused;
+            elements.pauseBtn.textContent = gameState.isPaused ? "继续" : "暂停";
+            elements.thinking.textContent = gameState.isPaused ? "游戏已暂停" : "AI思考中...";
+        }
+        
+        function resetGame() {
+            clearInterval(gameInterval);
+            initializeGame();
+            elements.thinking.textContent = "游戏已重置";
+            elements.pauseBtn.textContent = "暂停";
+        }
+
+        // 事件监听
+        elements.startBtn.addEventListener('click', startGame);
+        elements.pauseBtn.addEventListener('click', pauseGame);
+        elements.resetBtn.addEventListener('click', resetGame);
+
+        // 初始化游戏
+        initializeGame();
+    </script>
+</body>
+</html>
