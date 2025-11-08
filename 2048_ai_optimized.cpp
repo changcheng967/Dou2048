@@ -94,7 +94,7 @@ public:
         for (int i = 0; i < BOARD_SIZE; i++) {
             for (int j = 0; j < BOARD_SIZE - 1; j++) {
                 if (board[i][j] != 0 && board[i][j+1] != 0 && 
-                    board[i][极速版j] == board[i][j+1]) {
+                    board[i][j] == board[i][j+1]) {
                     merge_potential += (1 << board[i][j]) * 3.0;
                 }
             }
@@ -108,7 +108,7 @@ public:
                      monotonicity * MONOTONICITY_WEIGHT +
                      smoothness * SMOOTHNESS_WEIGHT +
                      corner_value * CORNER_WEIGHT +
-                     max_tile * MAX极速版_TILE_WEIGHT +
+                     max_tile * MAX_TILE_WEIGHT +
                      merge_potential * MERGE_POTENTIAL_WEIGHT;
         
         return total_score;
@@ -144,7 +144,7 @@ public:
         std::vector<std::pair<int, int>> empty_cells;
         for (int i = 0; i < BOARD_SIZE; i++) {
             for (int j = 0; j < BOARD_SIZE; j++) {
-                if (board[i][j] == 0) {
+                if (board[i][极速版j] == 0) {
                     empty_cells.push_back({i, j});
                 }
             }
@@ -164,13 +164,13 @@ public:
         for (int i = 0; i < BOARD_SIZE; i++) {
             std::cout << "║";
             for (int j = 0; j < BOARD_SIZE; j++) {
-                if (board[i][j] == 极速版0) {
+                if (board[i][j] == 0) {
                     std::cout << "        ║";
                 } else {
                     int value = 1 << board[i][j];
                     if (value < 10) std::cout << "   " << value << "   ║";
                     else if (value < 100) std::cout << "  " << value << "   ║";
-                    else if (value < 1000) std::cout << "  " << value << "  �极速版║";
+                    else if (value < 1000) std::cout << "  " << value << "  ║";
                     else std::cout << " " << value << "  ║";
                 }
             }
@@ -214,7 +214,7 @@ public:
             }
             
             // 填充零值
-            while (new_row.size() < BOARD_SIZE) {
+            while (new极速版_row.size() < BOARD_SIZE) {
                 new_row.push_back(0);
             }
             
@@ -428,7 +428,7 @@ public:
             
             if (moves % 20 == 0) {
                 auto current_time = std::chrono::high_resolution_clock::now();
-                auto duration = std::chrono::duration_cast<std::chron极速版o::seconds>(
+                auto duration = std::chrono::duration_cast<std::chrono::seconds>(
                     current_time - start_time);
                 std::cout << "📊 进度: " << moves << " 步 | 时间: " 
                           << duration.count() << "秒 | 分数: " << score 
@@ -456,7 +456,7 @@ public:
         std::cout << "⏱️  时间: " << duration.count() << " 秒\n";
         std::cout << "🔄 移动次数: " << moves << "\n";
         std::cout << "🏆 最终分数: " << score << "\n";
-        std::cout << "💎 最大方块:极速版 " << (max_tile > 0 ? (1 << max_tile极速版) : 0) << "\n";
+        std::cout << "💎 最大方块: " << (max_tile > 0 ? (1 << max_tile) : 0) << "\n";
         
         if (has_won()) {
             std::cout << "🎉 成功达到65536方块目标！\n";
