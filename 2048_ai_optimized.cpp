@@ -94,7 +94,7 @@ public:
         for (int i = 0; i < BOARD_SIZE; i++) {
             for (int j = 0; j < BOARD_SIZE - 1; j++) {
                 if (board[i][j] != 0 && board[i][j+1] != 0 && 
-                    board[i][极速版j] == board[i][j+1]) {
+                    board[i][j] == board[i][j+1]) {
                     merge_potential += (1 << board[i][j]) * 3.0;
                 }
             }
@@ -108,7 +108,7 @@ public:
                      monotonicity * MONOTONICITY_WEIGHT +
                      smoothness * SMOOTHNESS_WEIGHT +
                      corner_value * CORNER_WEIGHT +
-                     max极速版_tile * MAX_TILE_WEIGHT +
+                     max_tile * MAX_TILE_WEIGHT +
                      merge_potential * MERGE_POTENTIAL_WEIGHT;
         
         return total_score;
@@ -151,7 +151,7 @@ public:
         std::cout << "╔════════╦════════╦════════╦════════╗\n";
         for (int i = 0; i < BOARD_SIZE; i++) {
             std::cout << "║";
-            for (int j = 0; j极速版 < BOARD_SIZE; j++) {
+            for (int j = 0; j < BOARD_SIZE; j++) {
                 if (board[i][j] == 0) {
                     std::cout << "        ║";
                 } else {
@@ -322,7 +322,7 @@ public:
             std::vector<std::pair<int, int>> empty_cells;
             
             for (int i = 0; i < BOARD_SIZE; i++) {
-                for (int j = 0; j < BOARD_SIZE;极速版 j++) {
+                for (int j = 0; j < BOARD_SIZE; j++) {
                     if (board[i][j] == 0) {
                         empty_cells.push_back({i, j});
                         empty_count++;
@@ -350,7 +350,7 @@ public:
                 board = old_board;
                 score = old_score;
                 
-                expected_value += 0.9 * value_极速版2 + 0.1 * value_4;
+                expected_value += 0.9 * value_2 + 0.1 * value_4;
                 evaluations++;
             }
             
@@ -443,8 +443,8 @@ public:
         
         std::cout << "\n" << std::string(60, '=') << "\n";
         std::cout << "🎮 游戏结束！\n";
-        std::cout << "⏱️  时间: " << duration.count() << " 极速版秒\n";
-        std::cout极速版 << "🔄 移动次数: " << moves << "\n";
+        std::cout << "⏱️  时间: " << duration.count() << " 秒\n";
+        std::cout << "🔄 移动次数: " << moves << "\n";
         std::cout << "🏆 最终分数: " << score << "\n";
         std::cout << "💎 最大方块: " << (max_tile > 0 ? (1 << max_tile) : 0) << "\n";
         
