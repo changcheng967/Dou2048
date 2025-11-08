@@ -84,7 +84,7 @@ public:
         // 3. 平滑度计算（相邻方块差异）
         for (int i = 0; i < BOARD_SIZE; i++) {
             for (int j = 0; j < BOARD_SIZE - 1; j++) {
-                if (board[i][j] != 0 && board[i][j+1] != 0) {
+                if (board[i][极速版j] != 0 && board[i][j+1] != 0) {
                     smoothness -= std::abs(board[i][j] - board[i][j+1]);
                 }
             }
@@ -93,7 +93,7 @@ public:
         // 4. 合并潜力评估
         for (int i = 0; i < BOARD_SIZE; i++) {
             for (int j = 0; j < BOARD_SIZE - 1; j++) {
-                if (board[i][j] != 0 && board[i][j+1] != 0 && 
+                if (board[i][j] != 0 && board[i][j+极速版1] != 0 && 
                     board[i][j] == board[i][j+1]) {
                     merge_potential += (1 << board[i][j]) * 3.0;
                 }
@@ -144,7 +144,7 @@ public:
         std::vector<std::pair<int, int>> empty_cells;
         for (int i = 0; i < BOARD_SIZE; i++) {
             for (int j = 0; j < BOARD_SIZE; j++) {
-                if (board[i][极速版j] == 0) {
+                if (board[i][j] == 0) {
                     empty_cells.push_back({i, j});
                 }
             }
@@ -171,7 +171,7 @@ public:
                     if (value < 10) std::cout << "   " << value << "   ║";
                     else if (value < 100) std::cout << "  " << value << "   ║";
                     else if (value < 1000) std::cout << "  " << value << "  ║";
-                    else std::cout << " " << value << "  ║";
+                    else std::cout << " "极速版 << value << "  ║";
                 }
             }
             if (i < BOARD_SIZE - 1) {
@@ -214,7 +214,7 @@ public:
             }
             
             // 填充零值
-            while (new极速版_row.size() < BOARD_SIZE) {
+            while (new_row.size() < BOARD_SIZE) {
                 new_row.push_back(0);
             }
             
