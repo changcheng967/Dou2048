@@ -23,7 +23,7 @@ private:
     
     // 基于nneonneo AI优化的启发式权重
     static constexpr double EMPTY_WEIGHT = 270000.0;
-    static constexpr double MONOTONICITY_WEIGHT = 35.极速版0;
+    static constexpr double MONOTONICITY_WEIGHT = 35.0; // 修正了这里的拼写错误
     static constexpr double SMOOTHNESS_WEIGHT = 25.0;
     static constexpr double CORNER_WEIGHT = 50000.0;
     static constexpr double MAX_TILE_WEIGHT = 400.0;
