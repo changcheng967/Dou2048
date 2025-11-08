@@ -576,7 +576,7 @@
                     const newGrid = this.simulateMove(grid, move);
                     if (!newGrid) continue;
                     
-                    const score = this.expectimax(newGrid, depth, false, 3);
+                    const score = this.expectimax(newGrid, depth, false, 6);
                     
                     if (score > bestScore) {
                         bestScore = score;
@@ -599,8 +599,8 @@
                     let bestScore = -Infinity;
                     const moves = this.getAvailableMoves(grid);
                     
-                    // 只评估最有希望的前2个移动
-                    for (let i = 0; i < Math.min(2, moves.length); i++) {
+                    // 评估所有可能的移动，而不仅仅是前2个
+                    for (let i = 0; i < moves.length; i++) {
                         const newGrid = this.simulateMove(grid, moves[i]);
                         if (newGrid) {
                             const score = this.expectimax(newGrid, depth-1, false, samples);
@@ -664,22 +664,25 @@
                 // 5. 合并潜力评估
                 score += this.mergePotential(grid) * weights.merge;
                 
+                // 6. 蛇形模式奖励（新的评估因素）
+                score += this.snakePattern(grid) * weights.snake;
+                
                 return score;
             }
             
             getDynamicWeights(emptyCells, maxTile) {
                 if (emptyCells >= 10) {
                     // 早期：重视空格和结构建设
-                    return { empty: 4.0, corner: 2.0, monotonicity: 1.5, smoothness: 1.0, merge: 0.8 };
+                    return { empty: 5.0, corner: 3.0, monotonicity: 2.0, smoothness: 1.5, merge: 1.0, snake: 2.0 };
                 } else if (emptyCells >= 6) {
                     // 中期：平衡各种因素
-                    return { empty: 3.0, corner: 2.5, monotonicity: 2.0, smoothness: 1.5, merge: 1.5 };
+                    return { empty: 4.0, corner: 3.5, monotonicity: 3.0, smoothness: 2.5, merge: 2.5, snake: 3.0 };
                 } else if (emptyCells >= 3) {
                     // 中后期：重视合并和最大方块
-                    return { empty: 2.0, corner: 3.0, monotonicity: 2.5, smoothness: 2.0, merge: 2.0 };
+                    return { empty: 3.0, corner: 4.0, monotonicity: 3.5, smoothness: 3.0, merge: 3.0, snake: 4.0 };
                 } else {
-                    // 危险期：全力创造空格
-                    return { empty: 5.0, corner: 1.0, monotonicity: 1.0, smoothness: 0.5, merge: 1.0 };
+                    // 危险期：全力创造空格，同时保持结构
+                    return { empty: 6.0, corner: 2.0, monotonicity: 1.5, smoothness: 1.0, merge: 1.5, snake: 2.5 };
                 }
             }
             
@@ -691,12 +694,38 @@
                 // 最大方块在角落的奖励
                 for (const corner of corners) {
                     if (grid[corner] === maxTile) {
-                        bonus += maxTile * 0.5;
+                        bonus += maxTile * 1.0;
                         break;
                     }
                 }
                 
                 return bonus;
+            }
+            
+            // 新增蛇形模式评估函数
+            snakePattern(grid) {
+                // 定义理想的蛇形模式
+                const snakePattern1 = [0, 1, 2, 3, 7, 6, 5, 4, 8, 9, 10, 11, 15, 14, 13, 12];
+                const snakePattern2 = [0, 4, 8, 12, 13, 9, 5, 1, 2, 6, 10, 14, 15, 11, 7, 3];
+                
+                let score1 = 0;
+                let score2 = 0;
+                
+                // 评估与第一种蛇形模式的匹配度
+                for (let i = 0; i < 15; i++) {
+                    if (grid[snakePattern1[i]] >= grid[snakePattern1[i+1]] && grid[snakePattern1[i]] > 0) {
+                        score1 += grid[snakePattern1[i]];
+                    }
+                }
+                
+                // 评估与第二种蛇形模式的匹配度
+                for (let i = 0; i < 15; i++) {
+                    if (grid[snakePattern2[i]] >= grid[snakePattern2[i+1]] && grid[snakePattern2[i]] > 0) {
+                        score2 += grid[snakePattern2[i]];
+                    }
+                }
+                
+                return Math.max(score1, score2) * 0.3;
             }
             
             monotonicity(grid) {
@@ -708,7 +737,7 @@
                         const current = grid[row * 4 + col];
                         const next = grid[row * 4 + col + 1];
                         if (current > 0 && next > 0 && current >= next) {
-                            score++;
+                            score += Math.log2(current);
                         }
                     }
                 }
@@ -719,7 +748,7 @@
                         const current = grid[row * 4 + col];
                         const next = grid[(row + 1) * 4 + col];
                         if (current > 0 && next > 0 && current >= next) {
-                            score++;
+                            score += Math.log2(current);
                         }
                     }
                 }
@@ -820,10 +849,11 @@
             }
             
             calculateOptimalDepth(emptyCount, maxTile) {
-                if (emptyCount >= 10) return 3;
-                if (emptyCount >= 6) return 4;
-                if (emptyCount >= 3) return 5;
-                return 6;
+                // 增加搜索深度以提高决策质量
+                if (emptyCount >= 10) return 5;
+                if (emptyCount >= 6) return 6;
+                if (emptyCount >= 3) return 7;
+                return 8;
             }
             
             getAvailableMoves(grid) {
@@ -974,7 +1004,7 @@
                 if (ai.isTerminal(gameState.grid)) {
                     endGame();
                 }
-            }, gameState.isFastMode ? 50 : 150);
+            }, gameState.isFastMode ? 30 : 100);
         }
         
         function pauseGame() {
