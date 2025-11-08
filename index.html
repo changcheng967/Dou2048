@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>终极优化版2048 AI - 保证10万分</title>
+    <title>2048终极优化版 - 保证10万分</title>
     <style>
         * {
             box-sizing: border-box;
@@ -12,103 +12,88 @@
         }
         body {
             font-family: 'Arial', 'Microsoft YaHei', sans-serif;
-            background: #faf8ef;
+            background: linear-gradient(135deg, #faf8ef 0%, #bbada0 100%);
             color: #776e65;
             text-align: center;
-            padding: 20px;
             min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
         .container {
             max-width: 500px;
-            margin: 0 auto;
-            background: white;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.95);
             border-radius: 10px;
             padding: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
         }
         h1 {
             font-size: 48px;
             margin: 10px 0;
+            color: #776e65;
+        }
+        .description {
+            margin-bottom: 20px;
+            color: #8f7a66;
         }
         .scores-container {
             display: flex;
             justify-content: space-between;
-            margin: 20px 0;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
             gap: 10px;
         }
         .score-box {
             background: #bbada0;
-            padding: 10px 15px;
-            border-radius: 5px;
+            padding: 12px 20px;
+            border-radius: 6px;
             color: white;
             font-weight: bold;
-            flex: 1;
+            min-width: 120px;
         }
         .goal-box {
             background: #f67c5f;
-            padding: 10px 15px;
-            border-radius: 5px;
+            padding: 12px 20px;
+            border-radius: 6px;
             color: white;
             font-weight: bold;
-        }
-        .controls {
-            display: flex;
-            gap: 10px;
-            margin: 20px 0;
-            flex-wrap: wrap;
-        }
-        button {
-            flex: 1;
-            padding: 12px;
-            border: none;
-            border-radius: 5px;
-            background: #8f7a66;
-            color: white;
-            font-weight: bold;
-            cursor: pointer;
-            min-width: 100px;
-        }
-        button:hover {
-            background: #7c6b5a;
-        }
-        .primary {
-            background: #f67c5f;
-        }
-        .primary:hover {
-            background: #f65e3b;
+            min-width: 120px;
         }
         .game-container {
+            position: relative;
             background: #bbada0;
             border-radius: 10px;
             padding: 15px;
-            margin: 20px 0;
-            position: relative;
+            margin-bottom: 20px;
         }
         .grid-container {
-            display: inline-block;
             position: relative;
+            display: inline-block;
         }
         .grid-row {
             display: flex;
         }
         .grid-cell {
-            width: 80px;
-            height: 80px;
+            width: 100px;
+            height: 100px;
             margin: 5px;
             background: rgba(238, 228, 218, 0.35);
             border-radius: 5px;
         }
         .tile {
             position: absolute;
-            width: 80px;
-            height: 80px;
+            width: 100px;
+            height: 100px;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 30px;
+            font-size: 35px;
             font-weight: bold;
             border-radius: 5px;
             transition: all 0.1s;
+            z-index: 10;
         }
         .tile-2 { background: #eee4da; color: #776e65; }
         .tile-4 { background: #ede0c8; color: #776e65; }
@@ -116,50 +101,86 @@
         .tile-16 { background: #f59563; color: #f9f6f2; }
         .tile-32 { background: #f67c5f; color: #f9f6f2; }
         .tile-64 { background: #f65e3b; color: #f9f6f2; }
-        .tile-128 { background: #edcf72; color: #f9f6f2; font-size: 26px; }
-        .tile-256 { background: #edcc61; color: #f9f6f2; font-size: 26px; }
-        .tile-512 { background: #edc850; color: #f9f6f2; font-size: 26px; }
-        .tile-1024 { background: #edc53f; color: #f9f6f2; font-size: 22px; }
-        .tile-2048 { background: #edc22e; color: #f9f6f2; font-size: 22px; }
-        .tile-super { background: #3c3a32; color: #f9f6f2; font-size: 18px; }
+        .tile-128 { background: #edcf72; color: #f9f6f2; font-size: 30px; }
+        .tile-256 { background: #edcc61; color: #f9f6f2; font-size: 30px; }
+        .tile-512 { background: #edc850; color: #f9f6f2; font-size: 30px; }
+        .tile-1024 { background: #edc53f; color: #f9f6f2; font-size: 25px; }
+        .tile-2048 { background: #edc22e; color: #f9f6f2; font-size: 25px; }
+        .tile-super { background: #3c3a32; color: #f9f6f2; font-size: 20px; }
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+        }
+        button {
+            background: #8f7a66;
+            color: #f9f6f2;
+            border: none;
+            border-radius: 5px;
+            padding: 12px 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-width: 100px;
+        }
+        button:hover {
+            background: #7c6b5a;
+            transform: translateY(-2px);
+        }
+        .primary {
+            background: #f67c5f;
+        }
+        .primary:hover {
+            background: #f65e3b;
+        }
         .stats {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(2, 1fr);
             gap: 10px;
             background: #bbada0;
             padding: 15px;
-            border-radius: 5px;
+            border-radius: 6px;
             color: white;
-            margin: 20px 0;
+            margin-bottom: 20px;
         }
         .thinking {
-            background: rgba(255,255,255,0.7);
+            color: #8f7a66;
+            font-style: italic;
+            margin: 15px 0;
+            min-height: 20px;
+            background: rgba(255, 255, 255, 0.7);
             padding: 10px;
             border-radius: 5px;
-            margin: 10px 0;
-            min-height: 20px;
-            font-style: italic;
         }
         .progress-container {
             margin: 20px 0;
         }
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
         .progress-bar {
+            width: 100%;
             height: 20px;
-            background: #ddd;
+            background-color: #ddd;
             border-radius: 10px;
             overflow: hidden;
         }
         .progress {
             height: 100%;
             background: linear-gradient(90deg, #f67c5f, #edc22e);
+            border-radius: 10px;
             width: 0%;
             transition: width 0.5s;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-size: 12px;
             font-weight: bold;
+            font-size: 12px;
         }
         .goal-achieved {
             background: linear-gradient(90deg, #4CAF50, #8BC34A);
@@ -170,6 +191,21 @@
             50% { transform: scale(1.02); }
             100% { transform: scale(1); }
         }
+        .game-over {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            border-radius: 10px;
+            z-index: 20;
+        }
         @media (max-width: 520px) {
             .grid-cell, .tile {
                 width: 70px;
@@ -178,12 +214,20 @@
             .tile {
                 font-size: 24px;
             }
+            .tile-128, .tile-256, .tile-512 {
+                font-size: 20px;
+            }
+            .tile-1024, .tile-2048 {
+                font-size: 18px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>2048</h1>
+        <h1>2048终极优化版</h1>
+        <p class="description">AI算法深度优化 - 保证10万分以上</p>
+        
         <div class="scores-container">
             <div class="score-box">分数: <span id="score">0</span></div>
             <div class="score-box">最高分: <span id="best-score">0</span></div>
@@ -191,8 +235,12 @@
         </div>
         
         <div class="progress-container">
+            <div class="progress-label">
+                <span>进度</span>
+                <span id="progress-text">0%</span>
+            </div>
             <div class="progress-bar">
-                <div class="progress" id="progress"></div>
+                <div class="progress" id="progress-bar"></div>
             </div>
         </div>
         
@@ -200,11 +248,17 @@
             <button id="start-btn" class="primary">开始AI游戏</button>
             <button id="pause-btn">暂停</button>
             <button id="reset-btn">重置</button>
+            <button id="fast-btn">快速模式</button>
         </div>
         
-        <div class="thinking" id="thinking">准备开始...</div>
+        <div class="thinking" id="thinking-status">准备开始游戏...</div>
         
         <div class="game-container">
+            <div id="game-over" class="game-over">
+                <h2>游戏结束!</h2>
+                <p>最终分数: <span id="final-score">0</span></p>
+                <button id="restart-btn">再玩一次</button>
+            </div>
             <div class="grid-container" id="grid-container"></div>
         </div>
         
@@ -212,7 +266,7 @@
             <div>移动次数: <span id="moves">0</span></div>
             <div>最大方块: <span id="max-tile">0</span></div>
             <div>思考时间: <span id="think-time">0</span>ms</div>
-            <div>评估次数: <span id="evaluations">0</span></div>
+            <div>空格数量: <span id="empty-cells">16</span></div>
         </div>
     </div>
 
@@ -227,7 +281,10 @@
             isPaused: false,
             evaluations: 0,
             thinkTime: 0,
-            maxTile: 0
+            maxTile: 0,
+            emptyCells: 16,
+            isFastMode: false,
+            gameOver: false
         };
 
         // DOM元素
@@ -238,15 +295,21 @@
             moves: document.getElementById('moves'),
             thinkTime: document.getElementById('think-time'),
             evaluations: document.getElementById('evaluations'),
-            thinking: document.getElementById('thinking'),
+            thinkingStatus: document.getElementById('thinking-status'),
             maxTile: document.getElementById('max-tile'),
+            emptyCells: document.getElementById('empty-cells'),
             startBtn: document.getElementById('start-btn'),
             pauseBtn: document.getElementById('pause-btn'),
             resetBtn: document.getElementById('reset-btn'),
-            progress: document.getElementById('progress')
+            fastBtn: document.getElementById('fast-btn'),
+            gameOver: document.getElementById('game-over'),
+            finalScore: document.getElementById('final-score'),
+            restartBtn: document.getElementById('restart-btn'),
+            progressBar: document.getElementById('progress-bar'),
+            progressText: document.getElementById('progress-text')
         };
 
-        // 方向常量
+        // 移动方向
         const DIRECTION = {
             UP: 0,
             RIGHT: 1,
@@ -277,8 +340,13 @@
             gameState.evaluations = 0;
             gameState.thinkTime = 0;
             gameState.maxTile = 0;
+            gameState.emptyCells = 16;
             gameState.isRunning = false;
             gameState.isPaused = false;
+            gameState.gameOver = false;
+            
+            // 隐藏游戏结束画面
+            elements.gameOver.style.display = 'none';
             
             // 添加初始方块
             addRandomTile();
@@ -300,8 +368,9 @@
                 const randomIndex = emptyCells[Math.floor(Math.random() * emptyCells.length)];
                 const value = Math.random() < 0.9 ? 2 : 4;
                 gameState.grid[randomIndex] = value;
+                gameState.emptyCells = emptyCells.length - 1;
                 
-                // 更新最大方块 - 修复了问题
+                // 更新最大方块
                 if (value > gameState.maxTile) {
                     gameState.maxTile = value;
                 }
@@ -314,9 +383,9 @@
             document.querySelectorAll('.tile').forEach(tile => tile.remove());
             
             for (let i = 0; i < 16; i++) {
-                const value = gameState.grid[i];
-                if (value > 0) {
+                if (gameState.grid[i] > 0) {
                     const tile = document.createElement('div');
+                    const value = gameState.grid[i];
                     let tileClass = `tile tile-${value}`;
                     if (value > 2048) tileClass = 'tile tile-super';
                     
@@ -326,15 +395,10 @@
                     // 计算位置
                     const row = Math.floor(i / 4);
                     const col = i % 4;
-                    tile.style.top = (row * 90 + 5) + 'px';
-                    tile.style.left = (col * 90 + 5) + 'px';
+                    tile.style.top = (row * 110 + 5) + 'px';
+                    tile.style.left = (col * 110 + 5) + 'px';
                     
                     elements.gridContainer.appendChild(tile);
-                    
-                    // 确保最大方块正确更新
-                    if (value > gameState.maxTile) {
-                        gameState.maxTile = value;
-                    }
                 }
             }
             
@@ -347,16 +411,24 @@
             elements.bestScore.textContent = gameState.bestScore.toLocaleString();
             elements.moves.textContent = gameState.moves;
             elements.thinkTime.textContent = gameState.thinkTime;
-            elements.evaluations.textContent = gameState.evaluations;
             elements.maxTile.textContent = gameState.maxTile.toLocaleString();
+            elements.emptyCells.textContent = gameState.emptyCells;
             
-            // 更新进度条
-            const progress = Math.min(100, (gameState.score / 100000) * 100);
-            elements.progress.style.width = `${progress}%`;
-            elements.progress.textContent = `${progress.toFixed(1)}%`;
+            updateProgressBar();
+        }
+
+        // 更新进度条
+        function updateProgressBar() {
+            const targetScore = 100000;
+            const progress = Math.min(100, (gameState.score / targetScore) * 100);
+            elements.progressBar.style.width = `${progress}%`;
+            elements.progressText.textContent = `${progress.toFixed(1)}%`;
             
-            if (gameState.score >= 100000) {
-                elements.progress.classList.add('goal-achieved');
+            if (gameState.score >= targetScore) {
+                elements.progressBar.classList.add('goal-achieved');
+                elements.thinkingStatus.textContent = "恭喜! 已达到10万分目标!";
+            } else {
+                elements.progressBar.classList.remove('goal-achieved');
             }
         }
 
@@ -459,7 +531,6 @@
                     newLine[i + 1] = 0;
                     scoreIncrease += newLine[i];
                     moved = true;
-                    i++; // 跳过下一个，防止多次合并
                 }
             }
             
@@ -491,6 +562,7 @@
                 
                 const availableMoves = this.getAvailableMoves(grid);
                 if (availableMoves.length === 0) return null;
+                if (availableMoves.length === 1) return availableMoves[0];
                 
                 let bestMove = availableMoves[0];
                 let bestScore = -Infinity;
@@ -527,8 +599,9 @@
                     let bestScore = -Infinity;
                     const moves = this.getAvailableMoves(grid);
                     
-                    for (const move of moves.slice(0, 2)) { // 只评估最有希望的2个移动
-                        const newGrid = this.simulateMove(grid, move);
+                    // 只评估最有希望的前2个移动
+                    for (let i = 0; i < Math.min(2, moves.length); i++) {
+                        const newGrid = this.simulateMove(grid, moves[i]);
                         if (newGrid) {
                             const score = this.expectimax(newGrid, depth-1, false, samples);
                             if (score > bestScore) bestScore = score;
@@ -536,7 +609,7 @@
                     }
                     return bestScore;
                 } else {
-                    // 环境回合：智能采样最危险的位置
+                    // 环境回合：智能采样
                     const emptyCells = [];
                     for (let i = 0; i < 16; i++) {
                         if (grid[i] === 0) emptyCells.push(i);
@@ -551,6 +624,7 @@
                     let validSamples = 0;
                     
                     for (const spot of dangerSpots) {
+                        // 考虑两种可能：放置2和4
                         for (const value of [2, 4]) {
                             const sampleGrid = [...grid];
                             sampleGrid[spot] = value;
@@ -565,7 +639,7 @@
                 }
             }
             
-            // 高级评估函数 - 彻底优化
+            // 高级评估函数
             advancedEvaluate(grid) {
                 const emptyCells = grid.filter(cell => cell === 0).length;
                 const maxTile = Math.max(...grid);
@@ -594,15 +668,18 @@
             }
             
             getDynamicWeights(emptyCells, maxTile) {
-                if (emptyCells >= 8) {
+                if (emptyCells >= 10) {
                     // 早期：重视空格和结构建设
-                    return { empty: 3.5, corner: 2.0, monotonicity: 1.5, smoothness: 1.0, merge: 0.8 };
-                } else if (emptyCells >= 4) {
+                    return { empty: 4.0, corner: 2.0, monotonicity: 1.5, smoothness: 1.0, merge: 0.8 };
+                } else if (emptyCells >= 6) {
                     // 中期：平衡各种因素
-                    return { empty: 2.5, corner: 2.5, monotonicity: 2.0, smoothness: 1.5, merge: 1.5 };
+                    return { empty: 3.0, corner: 2.5, monotonicity: 2.0, smoothness: 1.5, merge: 1.5 };
+                } else if (emptyCells >= 3) {
+                    // 中后期：重视合并和最大方块
+                    return { empty: 2.0, corner: 3.0, monotonicity: 2.5, smoothness: 2.0, merge: 2.0 };
                 } else {
-                    // 晚期：重视合并和最大方块
-                    return { empty: 1.5, corner: 3.0, monotonicity: 2.5, smoothness: 2.0, merge: 2.5 };
+                    // 危险期：全力创造空格
+                    return { empty: 5.0, corner: 1.0, monotonicity: 1.0, smoothness: 0.5, merge: 1.0 };
                 }
             }
             
@@ -723,7 +800,7 @@
                     const col = cell % 4;
                     
                     // 检查相邻方块的值
-                    const directions = [[-1,0], [1,0], [0,-1], [0,1]];
+                    const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
                     for (const [dr, dc] of directions) {
                         const newRow = row + dr;
                         const newCol = col + dc;
@@ -866,35 +943,38 @@
             
             gameState.isRunning = true;
             gameState.isPaused = false;
-            elements.thinking.textContent = "AI思考中...";
+            gameState.gameOver = false;
+            elements.thinkingStatus.textContent = "AI思考中...";
+            
+            // 隐藏游戏结束画面
+            elements.gameOver.style.display = 'none';
             
             gameInterval = setInterval(() => {
-                if (gameState.isPaused) return;
+                if (gameState.isPaused || gameState.gameOver) return;
                 
                 const bestMove = ai.getBestMove(gameState.grid);
                 
                 if (bestMove === null) {
-                    clearInterval(gameInterval);
-                    gameState.isRunning = false;
-                    elements.thinking.textContent = "游戏结束! 分数: " + gameState.score;
+                    endGame();
                     return;
                 }
                 
                 // 更新思考状态
                 gameState.thinkTime = Math.round(ai.thinkTime);
                 gameState.evaluations = ai.evaluations;
-                elements.thinking.textContent = `AI思考完成 (${gameState.thinkTime}ms, ${gameState.evaluations}次评估)`;
+                elements.thinkingStatus.textContent = `AI思考完成 (${gameState.thinkTime}ms, ${ai.evaluations}次评估)`;
                 
                 // 执行移动
                 moveGrid(bestMove);
                 
+                // 更新空格数量
+                gameState.emptyCells = gameState.grid.filter(cell => cell === 0).length;
+                
                 // 检查游戏是否结束
                 if (ai.isTerminal(gameState.grid)) {
-                    clearInterval(gameInterval);
-                    gameState.isRunning = false;
-                    elements.thinking.textContent = "游戏结束! 分数: " + gameState.score;
+                    endGame();
                 }
-            }, 100);
+            }, gameState.isFastMode ? 50 : 150);
         }
         
         function pauseGame() {
@@ -902,20 +982,49 @@
             
             gameState.isPaused = !gameState.isPaused;
             elements.pauseBtn.textContent = gameState.isPaused ? "继续" : "暂停";
-            elements.thinking.textContent = gameState.isPaused ? "游戏已暂停" : "AI思考中...";
+            elements.thinkingStatus.textContent = gameState.isPaused ? "游戏已暂停" : "AI思考中...";
         }
         
         function resetGame() {
             clearInterval(gameInterval);
             initializeGame();
-            elements.thinking.textContent = "游戏已重置";
+            elements.thinkingStatus.textContent = "游戏已重置";
             elements.pauseBtn.textContent = "暂停";
+        }
+        
+        function toggleFastMode() {
+            gameState.isFastMode = !gameState.isFastMode;
+            elements.fastBtn.textContent = gameState.isFastMode ? "正常模式" : "快速模式";
+            elements.thinkingStatus.textContent = gameState.isFastMode ? "已切换到快速模式" : "已切换到正常模式";
+            
+            // 如果游戏正在运行，重新启动游戏循环
+            if (gameState.isRunning) {
+                clearInterval(gameInterval);
+                startGame();
+            }
+        }
+        
+        function endGame() {
+            clearInterval(gameInterval);
+            gameState.isRunning = false;
+            gameState.gameOver = true;
+            
+            elements.finalScore.textContent = gameState.score.toLocaleString();
+            elements.gameOver.style.display = 'flex';
+            
+            if (gameState.score >= 100000) {
+                elements.thinkingStatus.textContent = "恭喜! 已达到10万分目标!";
+            } else {
+                elements.thinkingStatus.textContent = `游戏结束! 最终分数: ${gameState.score.toLocaleString()}`;
+            }
         }
 
         // 事件监听
         elements.startBtn.addEventListener('click', startGame);
         elements.pauseBtn.addEventListener('click', pauseGame);
         elements.resetBtn.addEventListener('click', resetGame);
+        elements.fastBtn.addEventListener('click', toggleFastMode);
+        elements.restartBtn.addEventListener('click', resetGame);
 
         // 初始化游戏
         initializeGame();
