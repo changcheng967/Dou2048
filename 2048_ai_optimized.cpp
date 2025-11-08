@@ -21,7 +21,7 @@ private:
     int max_tile;
     std::mt19937 rng;
     
-    // 基于nneonneo AI优化的启发式权重[2](@ref)
+    // 基于nneonneo AI优化的启发式权重
     static constexpr double EMPTY_WEIGHT = 270000.0;
     static constexpr double MONOTONICITY_WEIGHT = 35.0;
     static constexpr double SMOOTHNESS_WEIGHT = 25.0;
@@ -29,20 +29,6 @@ private:
     static constexpr double MAX_TILE_WEIGHT = 400.0;
     static constexpr double MERGE_POTENTIAL_WEIGHT = 15.0;
     
-    // 评估缓存提升性能
-    std::unordered_map<uint64_t, double> eval_cache;
-    
-    // 将棋盘转换为唯一标识符
-    uint64_t board_to_hash() const {
-        uint64_t hash = 0;
-        for (int i = 0; i < BOARD_SIZE; i++) {
-            for (int j = 0; j < BOARD_SIZE; j++) {
-                hash = hash * 31 + board[i][j];
-            }
-        }
-        return hash;
-    }
-
 public:
     Ultimate2048AI() : score(0), moves(0), max_tile(0) {
         rng.seed(std::chrono::steady_clock::now().time_since_epoch().count());
@@ -66,18 +52,9 @@ public:
         }
     }
     
-    // 高性能评估函数 - 基于nneonneo优化[2](@ref)
+    // 高性能评估函数
     double evaluate_state() {
-        uint64_t hash = board_to_hash();
-        auto it = eval_cache.find(hash);
-        if (it != eval_cache.end()) {
-            return it->second;
-        }
-        
-        if (is_game_over()) {
-            eval_cache[hash] = -1000000.0;
-            return -1000000.0;
-        }
+        if (is_game_over()) return -1000000.0;
         
         double total_score = 0.0;
         int empty_count = 0;
@@ -86,7 +63,7 @@ public:
         double corner_value = 0.0;
         double merge_potential = 0.0;
         
-        // 1. 空格子统计（最重要的启发式）[2](@ref)
+        // 1. 空格子统计（最重要的启发式）
         for (int i = 0; i < BOARD_SIZE; i++) {
             for (int j = 0; j < BOARD_SIZE; j++) {
                 if (board[i][j] == 0) empty_count++;
@@ -117,7 +94,7 @@ public:
         for (int i = 0; i < BOARD_SIZE; i++) {
             for (int j = 0; j < BOARD_SIZE - 1; j++) {
                 if (board[i][j] != 0 && board[i][j+1] != 0 && 
-                    board[i][j] == board[i][j+1]) {
+                    board[i][极速版j] == board[i][j+1]) {
                     merge_potential += (1 << board[i][j]) * 3.0;
                 }
             }
@@ -126,19 +103,18 @@ public:
         // 5. 角落偏好（高价值方块在角落）
         if (board[0][0] == max_tile) corner_value += 100.0;
         
-        // 综合评估[2](@ref)
+        // 综合评估
         total_score = empty_count * EMPTY_WEIGHT +
                      monotonicity * MONOTONICITY_WEIGHT +
                      smoothness * SMOOTHNESS_WEIGHT +
                      corner_value * CORNER_WEIGHT +
-                     max_tile * MAX_TILE_WEIGHT +
+                     max_tile * MAX极速版_TILE_WEIGHT +
                      merge_potential * MERGE_POTENTIAL_WEIGHT;
         
-        eval_cache[hash] = total_score;
         return total_score;
     }
     
-    // 动态搜索深度调整 - 关键优化[2](@ref)
+    // 动态搜索深度调整
     int get_dynamic_depth() {
         int empty_cells = 0;
         int large_tiles = 0;
@@ -188,13 +164,13 @@ public:
         for (int i = 0; i < BOARD_SIZE; i++) {
             std::cout << "║";
             for (int j = 0; j < BOARD_SIZE; j++) {
-                if (board[i][j] == 0) {
+                if (board[i][j] == 极速版0) {
                     std::cout << "        ║";
                 } else {
                     int value = 1 << board[i][j];
                     if (value < 10) std::cout << "   " << value << "   ║";
                     else if (value < 100) std::cout << "  " << value << "   ║";
-                    else if (value < 1000) std::cout << "  " << value << "  ║";
+                    else if (value < 1000) std::cout << "  " << value << "  �极速版║";
                     else std::cout << " " << value << "  ║";
                 }
             }
@@ -319,7 +295,7 @@ public:
         return max_tile >= TARGET_TILE;
     }
     
-    // Expectimax搜索算法[6](@ref)
+    // Expectimax搜索算法
     double expectimax_search(int depth, bool is_maximizing, double probability = 1.0) {
         if (depth == 0 || is_game_over()) {
             return evaluate_state();
@@ -452,7 +428,7 @@ public:
             
             if (moves % 20 == 0) {
                 auto current_time = std::chrono::high_resolution_clock::now();
-                auto duration = std::chrono::duration_cast<std::chrono::seconds>(
+                auto duration = std::chrono::duration_cast<std::chron极速版o::seconds>(
                     current_time - start_time);
                 std::cout << "📊 进度: " << moves << " 步 | 时间: " 
                           << duration.count() << "秒 | 分数: " << score 
@@ -480,7 +456,7 @@ public:
         std::cout << "⏱️  时间: " << duration.count() << " 秒\n";
         std::cout << "🔄 移动次数: " << moves << "\n";
         std::cout << "🏆 最终分数: " << score << "\n";
-        std::cout << "💎 最大方块: " << (max_tile > 0 ? (1 << max_tile) : 0) << "\n";
+        std::cout << "💎 最大方块:极速版 " << (max_tile > 0 ? (1 << max_tile极速版) : 0) << "\n";
         
         if (has_won()) {
             std::cout << "🎉 成功达到65536方块目标！\n";
