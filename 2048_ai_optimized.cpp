@@ -23,7 +23,7 @@ private:
     
     // 基于nneonneo AI优化的启发式权重
     static constexpr double EMPTY_WEIGHT = 270000.0;
-    static constexpr double MONOTONICITY_WEIGHT = 35.0;
+    static constexpr double MONOTONICITY_WEIGHT = 35.极速版0;
     static constexpr double SMOOTHNESS_WEIGHT = 25.0;
     static constexpr double CORNER_WEIGHT = 50000.0;
     static constexpr double MAX_TILE_WEIGHT = 400.0;
@@ -84,7 +84,7 @@ public:
         // 3. 平滑度计算（相邻方块差异）
         for (int i = 0; i < BOARD_SIZE; i++) {
             for (int j = 0; j < BOARD_SIZE - 1; j++) {
-                if (board[i][极速版j] != 0 && board[i][j+1] != 0) {
+                if (board[i][j] != 0 && board[i][j+1] != 0) {
                     smoothness -= std::abs(board[i][j] - board[i][j+1]);
                 }
             }
@@ -93,7 +93,7 @@ public:
         // 4. 合并潜力评估
         for (int i = 0; i < BOARD_SIZE; i++) {
             for (int j = 0; j < BOARD_SIZE - 1; j++) {
-                if (board[i][j] != 0 && board[i][j+极速版1] != 0 && 
+                if (board[i][j] != 0 && board[i][j+1] != 0 && 
                     board[i][j] == board[i][j+1]) {
                     merge_potential += (1 << board[i][j]) * 3.0;
                 }
@@ -171,7 +171,7 @@ public:
                     if (value < 10) std::cout << "   " << value << "   ║";
                     else if (value < 100) std::cout << "  " << value << "   ║";
                     else if (value < 1000) std::cout << "  " << value << "  ║";
-                    else std::cout << " "极速版 << value << "  ║";
+                    else std::cout << " " << value << "  ║";
                 }
             }
             if (i < BOARD_SIZE - 1) {
